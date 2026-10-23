@@ -74,6 +74,17 @@ See [`.env.example`](.env.example).
 npm run lint && npm run format:check && npm run typecheck && npm run test && npm run build
 ```
 
+## CI
+
+`.github/workflows/ci.yml` runs on every pull request and on pushes to `main` (superseded runs
+are cancelled):
+
+- **`quality`**: `npm ci`, lint, format check, typecheck, unit tests, build (no database).
+- **`e2e`** (after `quality`): throwaway `postgres:17-alpine` service, `prisma migrate deploy`,
+  seed, Playwright (chromium) against a production build; the HTML report and traces are uploaded
+  as an artifact when the job fails. All environment values are test-only.
+- **`docker`** (after `quality`): builds the `runner` and `seed` images (never pushed).
+
 ## Tests
 
 - **Unit and component tests**: `npm run test` (Vitest + Testing Library, coverage report in
