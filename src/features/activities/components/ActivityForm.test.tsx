@@ -162,6 +162,8 @@ describe("ActivityForm", () => {
     await user.click(saveButton());
 
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith("Activity saved"));
+    // The toast fires inside the transition: wait for it to settle before asserting the reset.
+    await waitFor(() => expect(saveButton()).toBeEnabled());
     expect(createActivity).toHaveBeenCalledWith({
       ...initialValues,
       category: "TRAVAIL",

@@ -23,6 +23,9 @@ function createFakeClient() {
 
 const env = { ADMIN_EMAIL: "Admin@Example.com ", ADMIN_PASSWORD: "s3cret-password" };
 
+// Real cost-12 bcryptjs hashing is slow when the CPU is busy (e.g. shared CI runners).
+const BCRYPT_TEST_TIMEOUT = 30_000;
+
 describe("readAdminCredentials", () => {
   it("returns the normalised email and the password", () => {
     expect(readAdminCredentials(env)).toEqual({
@@ -54,34 +57,44 @@ describe("seedAdmin", () => {
     expect(upsert).not.toHaveBeenCalled();
   });
 
-  it("upserts on email with a bcrypt hash, never the plain password", async () => {
-    const { client, upsert } = createFakeClient();
+  it(
+    "upserts on email with a bcrypt hash, never the plain password",
+    async () => {
+      const { client, upsert } = createFakeClient();
 
-    const result = await seedAdmin(client, env);
+      const result = await seedAdmin(client, env);
 
-    expect(result).toEqual({ id: "user-1", email: "admin@example.com" });
-    expect(upsert).toHaveBeenCalledTimes(1);
-    const args = upsert.mock.calls[0]![0];
-    expect(args.where).toEqual({ email: "admin@example.com" });
-    expect(args.create.email).toBe("admin@example.com");
-    expect(args.create.passwordHash).toBe(args.update.passwordHash);
-    expect(args.create.passwordHash).not.toContain(env.ADMIN_PASSWORD);
-    expect(bcrypt.getRounds(args.create.passwordHash)).toBe(ADMIN_PASSWORD_HASH_COST);
-    await expect(bcrypt.compare(env.ADMIN_PASSWORD, args.create.passwordHash)).resolves.toBe(true);
-  });
+      expect(result).toEqual({ id: "user-1", email: "admin@example.com" });
+      expect(upsert).toHaveBeenCalledTimes(1);
+      const args = upsert.mock.calls[0]![0];
+      expect(args.where).toEqual({ email: "admin@example.com" });
+      expect(args.create.email).toBe("admin@example.com");
+      expect(args.create.passwordHash).toBe(args.update.passwordHash);
+      expect(args.create.passwordHash).not.toContain(env.ADMIN_PASSWORD);
+      expect(bcrypt.getRounds(args.create.passwordHash)).toBe(ADMIN_PASSWORD_HASH_COST);
+      await expect(bcrypt.compare(env.ADMIN_PASSWORD, args.create.passwordHash)).resolves.toBe(
+        true,
+      );
+    },
+    BCRYPT_TEST_TIMEOUT,
+  );
 
-  it("is idempotent and rotates the password hash on re-run", async () => {
-    const { client, users } = createFakeClient();
+  it(
+    "is idempotent and rotates the password hash on re-run",
+    async () => {
+      const { client, users } = createFakeClient();
 
-    await seedAdmin(client, env);
-    const firstHash = users.get("admin@example.com")!.passwordHash;
-    await seedAdmin(client, { ...env, ADMIN_PASSWORD: "rotated-password" });
+      await seedAdmin(client, env);
+      const firstHash = users.get("admin@example.com")!.passwordHash;
+      await seedAdmin(client, { ...env, ADMIN_PASSWORD: "rotated-password" });
 
-    expect(users.size).toBe(1);
-    const user = users.get("admin@example.com")!;
-    expect(user.id).toBe("user-1");
-    expect(user.passwordHash).not.toBe(firstHash);
-    await expect(bcrypt.compare("rotated-password", user.passwordHash)).resolves.toBe(true);
-    await expect(bcrypt.compare(env.ADMIN_PASSWORD, user.passwordHash)).resolves.toBe(false);
-  });
+      expect(users.size).toBe(1);
+      const user = users.get("admin@example.com")!;
+      expect(user.id).toBe("user-1");
+      expect(user.passwordHash).not.toBe(firstHash);
+      await expect(bcrypt.compare("rotated-password", user.passwordHash)).resolves.toBe(true);
+      await expect(bcrypt.compare(env.ADMIN_PASSWORD, user.passwordHash)).resolves.toBe(false);
+    },
+    BCRYPT_TEST_TIMEOUT,
+  );
 });

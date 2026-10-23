@@ -126,6 +126,7 @@ describe("EditActivityDialog", () => {
     await user.click(save);
     expect(await within(dialog).findByText(ACTIVITY_MESSAGES.subcategoryMismatch)).toBeVisible();
 
+    await waitFor(() => expect(save).toBeEnabled());
     await user.click(save);
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(UPDATE_ERROR_MESSAGE);
   });
