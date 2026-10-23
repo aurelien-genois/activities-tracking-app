@@ -1,4 +1,12 @@
+import { existsSync } from "node:fs";
+
 import { defineConfig, devices } from "@playwright/test";
+
+// Same approach as prisma.config.ts: load `.env` (ADMIN_EMAIL/ADMIN_PASSWORD for
+// the login spec) when present; variables already set in the environment win.
+if (existsSync(".env")) {
+  process.loadEnvFile(".env");
+}
 
 const port = Number(process.env.PORT ?? 3000);
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://localhost:${port}`;

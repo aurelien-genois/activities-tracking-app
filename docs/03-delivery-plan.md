@@ -37,7 +37,7 @@ Order note: Prisma comes before Authentication (the login needs the `User` model
 
 - **Objectives**: single-admin credentials login, protected routes, rate limiting.
 - **Deliverables**: `auth.config.ts`, `auth.ts`, `middleware.ts`, `/api/auth/[...nextauth]`, `/login` page + `LoginForm`, logout action, `(app)` protected layout with nav, `src/lib/rate-limit.ts` with unit tests (limit reached, window expiry, reset on success), generic error messages, dummy compare on unknown email.
-- **Files**: `src/auth.ts`, `src/auth.config.ts`, `middleware.ts`, `src/app/login/page.tsx`, `src/app/(app)/layout.tsx`, `src/app/api/auth/[...nextauth]/route.ts`, `src/features/auth/**`, `src/lib/rate-limit.ts(+test)`, `src/types/next-auth.d.ts`.
+- **Files**: `src/auth.ts`, `src/auth.config.ts`, `src/middleware.ts`, `src/app/login/page.tsx`, `src/app/(app)/layout.tsx`, `src/app/api/auth/[...nextauth]/route.ts`, `src/features/auth/**`, `src/lib/rate-limit.ts(+test)`, `src/types/next-auth.d.ts`.
 - **Dependencies**: Phases 1, 2.
 - **Acceptance**: unauthenticated access redirects to `/login`; valid login reaches `/`; invalid credentials give one generic message; 6th failed attempt returns "Too many attempts, try again later." before password check; `/api/health` stays public; limiter tests pass.
 

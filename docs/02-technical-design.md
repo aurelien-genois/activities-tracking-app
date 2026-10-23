@@ -33,7 +33,6 @@ Browser (mobile) ── Server Components (read: Prisma directly)
 .
 ├── prisma.config.ts                 # schema, migrations path, seed (tsx), DATABASE_URL
 ├── next.config.ts                   # output: "standalone"
-├── middleware.ts                    # Auth.js edge-safe protection
 ├── vitest.config.ts  vitest.setup.ts
 ├── playwright.config.ts             # webServer: build + next start
 ├── eslint.config.mjs  .prettierrc  .prettierignore
@@ -75,6 +74,7 @@ Browser (mobile) ── Server Components (read: Prisma directly)
     │   ├── rate-limit.ts            # in-memory limiter
     │   └── utils.ts                 # cn()
     ├── auth.ts  auth.config.ts      # Auth.js (full / edge-safe)
+    ├── middleware.ts                # Auth.js edge-safe protection (must live in src/ with a src/app layout)
     ├── prisma/
     │   ├── schema.prisma
     │   ├── migrations/
@@ -91,10 +91,10 @@ Prisma 7 specifics (to verify against official docs at Phase 3): generator `pris
 
 - Auth.js v5 (`next-auth@beta`), **Credentials** provider, **JWT** session strategy (no Session/Account tables; `@auth/prisma-adapter` unused).
 - Split config:
-  - `auth.config.ts`: edge-safe (pages `{ signIn: "/login" }`, `authorized` callback). Used by `middleware.ts`.
+  - `auth.config.ts`: edge-safe (pages `{ signIn: "/login" }`, `authorized` callback). Used by `src/middleware.ts` (Next.js ignores a root `middleware.ts` when the app lives in `src/`).
   - `auth.ts`: Credentials `authorize` (Zod-validates input, rate-limit check, `prisma.user.findUnique`, `bcryptjs.compare`). Runs on Node only.
 - Middleware matcher protects everything except `/login`, `/api/auth/*`, `/api/health`, `_next/*`, static assets. Authenticated user visiting `/login` is redirected to `/`.
-- **Rate limiting** (`src/lib/rate-limit.ts`): `Map<key, { failures: number[] }>` keyed by `ip + ":" + normalisedEmail`; 5 failures per 15 min sliding window; checked before the password; generic message "Too many attempts, try again later."; reset on success; periodic cleanup of expired keys. IP from `x-forwarded-for` (first value) / `x-real-ip`, only when `AUTH_TRUST_HOST` is set. Clock injectable for tests.
+- **Rate limiting** (`src/lib/rate-limit.ts`): `Map<key, { failures: number[] }>` keyed by `ip + ":" + normalisedEmail`; 5 failures per 15 min sliding window; checked before the password; generic message "Too many attempts, try again later."; reset on success; periodic cleanup of expired keys. IP from `x-forwarded-for` (first value) / `x-real-ip`, only when `AUTH_TRUST_HOST` is set. Clock injectable for tests. The check lives in `authorize` (`src/features/auth/authorize.ts`), which reads the IP from the request headers Auth.js forwards, so it applies both to the login Server Action and to direct POSTs on `/api/auth/callback/credentials`; the limiter instance is kept on `globalThis` because Next.js bundles the route handler and the Server Action separately. Rate-limited attempts throw a `CredentialsSignin` subclass with `code: "rate_limited"`, mapped to the message by the login action.
 - Credential errors always the same generic message ("Invalid email or password"); on unknown email a dummy bcrypt compare is run to reduce timing differences.
 - **Seed** (`src/prisma/seed.ts`, run by `tsx`): reads `ADMIN_EMAIL` / `ADMIN_PASSWORD` (explicit error if missing), `bcryptjs.hash` (cost 12), `prisma.user.upsert({ where: { email }, update: { passwordHash }, create })`, never logs the password.
 - Cookies: Auth.js defaults (httpOnly, sameSite=lax, secure in production behind HTTPS). `AUTH_SECRET` required.

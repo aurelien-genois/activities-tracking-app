@@ -16,6 +16,8 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
     css: false,
+    // next-auth imports `next/server` without extension; let Vite resolve it.
+    server: { deps: { inline: ["next-auth"] } },
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "lcov"],
