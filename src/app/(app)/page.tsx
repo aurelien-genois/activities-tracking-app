@@ -1,5 +1,6 @@
 import { ActivityForm } from "@/features/activities/components/ActivityForm";
-import { getLatestActivityEnd } from "@/features/activities/queries";
+import { RecentList } from "@/features/activities/components/RecentList";
+import { getLatestActivityEnd, getRecentActivities } from "@/features/activities/queries";
 import { getActivityFormDefaults } from "@/features/activities/time";
 import { getEnv } from "@/lib/env";
 
@@ -8,16 +9,19 @@ export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const timeZone = getEnv().APP_TIMEZONE;
-  const latestEnd = await getLatestActivityEnd();
-  const initialValues = getActivityFormDefaults(latestEnd, timeZone, new Date());
+  const [latestEnd, recentActivities] = await Promise.all([
+    getLatestActivityEnd(),
+    getRecentActivities(),
+  ]);
+  const now = new Date();
+  const initialValues = getActivityFormDefaults(latestEnd, timeZone, now);
 
   return (
-    // Bottom padding reserves the space of the fixed Save bar.
-    <div className="flex flex-col gap-6 pb-24">
+    // Bottom padding reserves the space of the fixed Save bar (incl. the safe area).
+    <div className="flex flex-col gap-6 pb-[calc(6rem+env(safe-area-inset-bottom))]">
       <h1 className="sr-only">Activities Tracking</h1>
       <ActivityForm initialValues={initialValues} timeZone={timeZone} />
-
-      {/* Phase 6: recent activities (latest 10) go here, below the form. */}
+      <RecentList activities={recentActivities} timeZone={timeZone} now={now} />
     </div>
   );
 }

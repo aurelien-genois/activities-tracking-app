@@ -5,6 +5,7 @@ import { ACTIVITY_MESSAGES as M } from "./schema";
 import {
   activityToFormTimes,
   durationMinutes,
+  formatDayLabel,
   formatDuration,
   formatTime,
   formatTimeRange,
@@ -199,6 +200,13 @@ describe("formatting", () => {
     expect(formatTime(interval.startAt, PARIS)).toBe("09:00");
     expect(formatTimeRange(interval, PARIS)).toBe("09:00 - 10:05");
     expect(formatTimeRange(interval, "UTC")).toBe("07:00 - 08:05");
+  });
+
+  it("formats a short day label in the time zone", () => {
+    expect(formatDayLabel(new Date("2026-10-22T10:00:00Z"), PARIS)).toBe("Thu 22 Oct");
+    // 23:30 UTC is already the next day in Paris.
+    expect(formatDayLabel(new Date("2026-10-22T23:30:00Z"), PARIS)).toBe("Fri 23 Oct");
+    expect(formatDayLabel(new Date("2026-10-22T23:30:00Z"), "UTC")).toBe("Thu 22 Oct");
   });
 
   it("derives form date and times from startAt in the time zone", () => {

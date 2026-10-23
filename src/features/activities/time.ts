@@ -95,6 +95,27 @@ export function formatTime(instant: Date, timeZone: string): string {
   return instantToZoned(instant, timeZone).time;
 }
 
+const dayLabelFormatters = new Map<string, Intl.DateTimeFormat>();
+
+/** Short day label of an instant in `timeZone`, e.g. `Thu 22 Oct`. */
+export function formatDayLabel(instant: Date, timeZone: string): string {
+  let formatter = dayLabelFormatters.get(timeZone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("en-GB", {
+      timeZone,
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    });
+    dayLabelFormatters.set(timeZone, formatter);
+  }
+  // Built from parts so the output does not depend on ICU punctuation.
+  const parts = Object.fromEntries(
+    formatter.formatToParts(instant).map((part) => [part.type, part.value]),
+  );
+  return `${parts.weekday} ${parts.day} ${parts.month}`;
+}
+
 /** `HH:mm - HH:mm` of an activity in `timeZone`. */
 export function formatTimeRange(interval: ActivityInterval, timeZone: string): string {
   return `${formatTime(interval.startAt, timeZone)} - ${formatTime(interval.endAt, timeZone)}`;
