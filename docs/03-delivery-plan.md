@@ -69,7 +69,7 @@ Order note: Prisma comes before Authentication (the login needs the `User` model
 
 - **Objectives**: browse, filter, edit, delete.
 - **Deliverables**: `/history` with 20 per page pagination, sort by date desc, notes search (case-insensitive), category and subcategory filters (URL search params, validated), edit dialog (same schema, same overlap check excluding self, same future rule), delete with confirmation, empty/error states.
-- **Files**: `src/app/(app)/history/page.tsx`, `src/features/activities/components/{HistoryList,Filters,Pagination,EditActivityDialog,DeleteActivityButton}.tsx`, `queries.ts`, `actions.ts` (if adjustments).
+- **Files**: `src/app/(app)/history/page.tsx`, `src/features/activities/components/{HistoryList,HistoryFilters,Pagination,EditActivityDialog,DeleteActivityButton}.tsx`, `history.ts` (href/page/grouping helpers), `validate-form.ts` (shared client pre-check), `queries.ts`, `actions.ts` (if adjustments).
 - **Dependencies**: Phases 4, 5 (form fields reused for edit).
 - **Acceptance**: filters and search combine and persist in URL; invalid params ignored; edit rejects overlap/future; delete removes the row without overlap checks; page 2 appears beyond 20 entries.
 

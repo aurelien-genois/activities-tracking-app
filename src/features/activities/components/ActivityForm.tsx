@@ -7,31 +7,15 @@ import { Button } from "@/components/ui/button";
 import { nowTimeInTz, todayInTz } from "@/lib/datetime";
 
 import { createActivity } from "../actions";
-import { type ActivityFieldErrors, activityFormSchema, getFieldErrors } from "../schema";
-import { toActivityInterval } from "../time";
+import { type ActivityFormErrors, validateActivityForm } from "../validate-form";
 import { ActivityFields, type ActivityFieldValues } from "./ActivityFields";
 
 export const SAVED_MESSAGE = "Activity saved";
 export const UNEXPECTED_ERROR_MESSAGE = "The activity could not be saved. Please retry.";
 
-type Errors = { fieldErrors: ActivityFieldErrors; formError?: string };
+type Errors = ActivityFormErrors;
 
 const NO_ERRORS: Errors = { fieldErrors: {} };
-
-/** Same checks as the server action (shared schema + future/DST check), run before submitting. */
-function validate(
-  values: ActivityFieldValues,
-  timeZone: string,
-): { ok: true; endTime: string } | ({ ok: false } & Errors) {
-  const parsed = activityFormSchema.safeParse(values);
-  if (!parsed.success) {
-    const formError = parsed.error.issues.find((issue) => issue.path.length === 0)?.message;
-    return { ok: false, fieldErrors: getFieldErrors(parsed.error), formError };
-  }
-  const interval = toActivityInterval(parsed.data, timeZone, new Date());
-  if (!interval.ok) return interval;
-  return { ok: true, endTime: parsed.data.endTime };
-}
 
 export type ActivityFormProps = {
   initialValues: ActivityFieldValues;
@@ -59,7 +43,7 @@ export function ActivityForm({ initialValues, timeZone }: ActivityFormProps) {
     event.preventDefault();
     if (isPending) return;
 
-    const checked = validate(values, timeZone);
+    const checked = validateActivityForm(values, timeZone);
     if (!checked.ok) {
       setErrors({ fieldErrors: checked.fieldErrors, formError: checked.formError });
       return;
@@ -83,7 +67,7 @@ export function ActivityForm({ initialValues, timeZone }: ActivityFormProps) {
       const now = new Date();
       setValues({
         date: todayInTz(now, timeZone),
-        startTime: checked.endTime,
+        startTime: checked.data.endTime,
         endTime: nowTimeInTz(now, timeZone),
         category: "",
         subcategory: "",
