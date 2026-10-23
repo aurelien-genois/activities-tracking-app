@@ -61,6 +61,7 @@ Browser (mobile) ── Server Components (read: Prisma directly)
     │   │   ├── schema.ts            # Zod schema + filters schema
     │   │   ├── time.ts              # Date+time -> startAt/endAt, defaults, duration
     │   │   ├── overlap.ts           # pure overlap predicate + in-tx check
+    │   │   ├── save.ts              # serializable transaction + retry (injected client, unit-tested)
     │   │   ├── actions.ts           # create / update / delete Server Actions
     │   │   ├── queries.ts           # getRecent, getHistory, getLatestEnd
     │   │   └── components/          # ActivityForm, CategoryChips, RecentList, HistoryTable, EditDialog, DeleteButton, Filters
@@ -108,6 +109,7 @@ Schema exactly as specified (User, Activity; timestamps only; indexes on `startA
   2. if found -> return overlap error (message includes conflicting activity times);
   3. else `create` / `update`.
      Serialization failures (`P2034`) are retried up to 3 times, then returned as a generic "Please retry" error.
+     Implementation notes (Phase 4): the transaction logic lives in `features/activities/save.ts` (takes an injected Prisma-like client; `actions.ts` keeps only the `"use server"` actions). An update first checks that the activity exists (`not-found` result; `P2025` is also mapped). With `@prisma/adapter-pg` (Prisma 7.10), a serialization failure at `COMMIT` is not mapped to `P2034` but thrown as a raw `DriverAdapterError` (`cause.kind = "TransactionWriteConflict"`, `cause.originalCode = "40001"`): both forms are treated as retryable (1 attempt + up to 3 retries). Verified against PostgreSQL with concurrent overlapping inserts (one wins, the others get the overlap error; the same test under `ReadCommitted` creates overlaps).
 - **Queries**:
   - Recent: `orderBy { startAt: "desc" }, take: 10`.
   - Latest end: `findFirst orderBy { endAt: "desc" }`.
@@ -121,6 +123,7 @@ Schema exactly as specified (User, Activity; timestamps only; indexes on `startA
   - input: `{ date: "yyyy-MM-dd", startTime: "HH:mm", endTime: "HH:mm", category, subcategory, notes? }`
   - field rules: required messages; `category` enum from `Object.keys(CATEGORIES)`; `notes` max 1000 (empty string -> undefined).
   - `superRefine`: subcategory must belong to `CATEGORIES[category]` (issue on `subcategory` path); `endTime > startTime` (issue on `endTime`); end not `00:00`; (same-day is implied since both times share one date).
+  - DST (Phase 4): a local time inside the spring-forward gap does not exist and is rejected on the start/end field; an ambiguous autumn time resolves to its first occurrence (summer time).
   - Future check and conversion to instants live in a second step `toActivityInterval(values, timezone, now)` (pure, returns `{ startAt, endAt }` or errors) so the schema stays pure/time-independent and the check uses the same `now` injection on client and server.
 - Used in: client form (inline messages, submit disabled until valid/pending), `createActivity`, `updateActivity`. Server is the source of truth; client re-uses it for fast feedback.
 - Overlap is server-only (needs DB), surfaced as `formError`; the client also performs a best-effort check against the recent list loaded in the page (optional, not required).
