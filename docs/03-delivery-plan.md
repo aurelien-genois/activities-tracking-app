@@ -2,18 +2,18 @@
 
 Each phase is implemented alone, then stops for validation with: decisions, files created/modified, risks, commit message. Quality gate per phase: `lint`, `format`, `typecheck`, `test`, `build` (tests/build pass once their tooling exists, from Phase 1).
 
-| #   | Phase                                |
-| --- | ------------------------------------ |
-| 1   | Project Bootstrap                    |
-| 2   | Database & Prisma                    |
-| 3   | Authentication                       |
-| 4   | Validation & Overlap Detection       |
-| 5   | Activity Entry Form                  |
-| 6   | Recent Activities                    |
-| 7   | History Page                         |
-| 8   | Automated Tests (component and e2e)  |
-| 9   | Dockerization                        |
-| 10  | CI Pipeline                          |
+| #   | Phase                               |
+| --- | ----------------------------------- |
+| 1   | Project Bootstrap                   |
+| 2   | Database & Prisma                   |
+| 3   | Authentication                      |
+| 4   | Validation & Overlap Detection      |
+| 5   | Activity Entry Form                 |
+| 6   | Recent Activities                   |
+| 7   | History Page                        |
+| 8   | Automated Tests (component and e2e) |
+| 9   | Dockerization                       |
+| 10  | CI Pipeline                         |
 
 Order note: Prisma comes before Authentication (the login needs the `User` model and the client); this swaps phases 2 and 3 from the prompt's example.
 

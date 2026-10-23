@@ -102,6 +102,7 @@ After each phase:
 - propose a git commit message
 
 Then stop and wait for validation before starting the next phase.
+
 ## Step 5 - Quality Gate
 
 Before considering any phase complete, verify:

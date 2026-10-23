@@ -1,1 +1,27 @@
+# dependencies
 /node_modules
+
+# env files (keep the example)
+.env
+.env*.local
+!.env.example
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+*.tsbuildinfo
+
+# testing
+/coverage
+/playwright-report
+/test-results
+/blob-report
+/playwright/.cache
+
+# prisma generated client
+/src/generated
+
+# misc
+.DS_Store
+*.log

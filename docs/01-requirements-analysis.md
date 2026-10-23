@@ -2,19 +2,19 @@
 
 ## Functional requirements
 
-| ID    | Requirement                                                                                                                                                                                           |
-| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FR-1  | Single admin account, Credentials login (Auth.js), no registration; all routes protected, unauthenticated users redirected to login. `/api/health` is public.                                          |
-| FR-2  | Admin created by idempotent seed (`upsert` on email, bcrypt hash, password rotated on re-run, fails if `ADMIN_EMAIL`/`ADMIN_PASSWORD` missing). Never run automatically.                              |
-| FR-3  | Login rate limit: 5 failed attempts / 15 min per IP+email, in-memory, generic error, checked before password, reset on success.                                                                      |
-| FR-4  | Create activity: Date (default today), Start (default = end of latest activity, else now), End (default now), category chip, subcategory chip (filtered by category), optional note (<= 1000 chars). |
-| FR-5  | After save: toast "Activity saved", form reset (start = saved end, end = now, no category/subcategory, empty note).                                                                                   |
-| FR-6  | Recent activities (latest 10, most recent first) below the form, shown as `HH:mm - HH:mm` and `Category > Subcategory`.                                                                               |
-| FR-7  | `/history`: pagination, sort by date desc, edit, delete, notes search, category and subcategory filters (validated against `CATEGORIES`).                                                             |
-| FR-8  | Edit uses the same Zod schema and overlap check as creation, excluding the edited activity. Delete needs no overlap check.                                                                           |
+| ID    | Requirement                                                                                                                                                                                                              |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| FR-1  | Single admin account, Credentials login (Auth.js), no registration; all routes protected, unauthenticated users redirected to login. `/api/health` is public.                                                            |
+| FR-2  | Admin created by idempotent seed (`upsert` on email, bcrypt hash, password rotated on re-run, fails if `ADMIN_EMAIL`/`ADMIN_PASSWORD` missing). Never run automatically.                                                 |
+| FR-3  | Login rate limit: 5 failed attempts / 15 min per IP+email, in-memory, generic error, checked before password, reset on success.                                                                                          |
+| FR-4  | Create activity: Date (default today), Start (default = end of latest activity, else now), End (default now), category chip, subcategory chip (filtered by category), optional note (<= 1000 chars).                     |
+| FR-5  | After save: toast "Activity saved", form reset (start = saved end, end = now, no category/subcategory, empty note).                                                                                                      |
+| FR-6  | Recent activities (latest 10, most recent first) below the form, shown as `HH:mm - HH:mm` and `Category > Subcategory`.                                                                                                  |
+| FR-7  | `/history`: pagination, sort by date desc, edit, delete, notes search, category and subcategory filters (validated against `CATEGORIES`).                                                                                |
+| FR-8  | Edit uses the same Zod schema and overlap check as creation, excluding the edited activity. Delete needs no overlap check.                                                                                               |
 | FR-9  | Validation (Zod): required date/start/end, end > start, not in the future, same calendar day (no crossing midnight, end 00:00 next day refused), category in keys, subcategory in `CATEGORIES[category]`, notes <= 1000. |
-| FR-10 | Overlap rule: `newStart < existingEnd && newEnd > existingStart`; back-to-back allowed; clear message; client + server (mandatory) validation.                                                       |
-| FR-11 | Categories are fixed constants in code (keys = stored labels), not editable in UI.                                                                                                                    |
+| FR-10 | Overlap rule: `newStart < existingEnd && newEnd > existingStart`; back-to-back allowed; clear message; client + server (mandatory) validation.                                                                           |
+| FR-11 | Categories are fixed constants in code (keys = stored labels), not editable in UI.                                                                                                                                       |
 
 Out of scope: analytics, reporting, AI, registration, multi-user, Recharts charts (installed only).
 
@@ -40,19 +40,19 @@ Out of scope: analytics, reporting, AI, registration, multi-user, Recharts chart
 
 ## Risks
 
-| #   | Risk                                                                                                                                                      | Mitigation                                                                                                      |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| #   | Risk                                                                                                                                                      | Mitigation                                                                                                       |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | R1  | Timezone/DST bugs converting Date + time to `startAt`/`endAt` in `APP_TIMEZONE` (spring/autumn Paris changes, ambiguous/non-existent local times).        | Single date util in `src/lib` (date-fns + tz handling), unit tests on DST days; server and client use same util. |
-| R2  | Concurrent writes create overlaps.                                                                                                                        | Serializable transaction with retry on serialization failure (`P2034`); no exclusion constraint in V1.          |
-| R3  | Prisma 7 / Next 15 / Auth.js v5 beta / TS 6 / Vitest 5 breaking changes (generator path, ESM config, adapter-pg, edge runtime incompatibilities).        | Read official docs before coding; Prisma and bcrypt not imported in middleware (edge); split Auth.js config.    |
-| R4  | Auth.js middleware runs on edge and cannot use Prisma/bcrypt.                                                                                             | Split `auth.config.ts` (edge-safe) from `auth.ts` (credentials authorize); use JWT sessions.                    |
-| R5  | In-memory rate limiter is lost on restart and not shared across instances; IP spoofing via headers.                                                      | Accepted for V1; trust proxy headers only with `AUTH_TRUST_HOST`; document.                                     |
-| R6  | "No scroll" form plus keyboard and persistent save button on small viewports.                                                                             | Compact layout, sticky save bar, test on 360x640 viewport in Playwright.                                        |
-| R7  | Client "default start = last end" can be stale (other device/tab).                                                                                        | Compute on server render and after each save; server re-validates overlap anyway.                               |
-| R8  | Coverage threshold (> 80%) failing `npm test` due to scope config.                                                                                        | Configure `coverage.include` / thresholds early; keep logic in `src/lib` and `src/features`.                    |
-| R9  | Docker: migrations in runner need Prisma CLI and config (TS config needs `tsx`/deps in the image); standalone output tracing misses Prisma engines files. | Verify the image builds and migrates early (Phase 9); copy required node_modules explicitly.                    |
-| R10 | Unicode/accents in categories (`Dîner`, `Création`, `Écouter`) in URL filters and DB values.                                                              | Use exact constant values; test filters with accented values.                                                   |
-| R11 | Zod 4 API differences (`superRefine` path issues, error format).                                                                                          | Verify against Zod 4 docs; test schema thoroughly.                                                              |
+| R2  | Concurrent writes create overlaps.                                                                                                                        | Serializable transaction with retry on serialization failure (`P2034`); no exclusion constraint in V1.           |
+| R3  | Prisma 7 / Next 15 / Auth.js v5 beta / TS 6 / Vitest 5 breaking changes (generator path, ESM config, adapter-pg, edge runtime incompatibilities).         | Read official docs before coding; Prisma and bcrypt not imported in middleware (edge); split Auth.js config.     |
+| R4  | Auth.js middleware runs on edge and cannot use Prisma/bcrypt.                                                                                             | Split `auth.config.ts` (edge-safe) from `auth.ts` (credentials authorize); use JWT sessions.                     |
+| R5  | In-memory rate limiter is lost on restart and not shared across instances; IP spoofing via headers.                                                       | Accepted for V1; trust proxy headers only with `AUTH_TRUST_HOST`; document.                                      |
+| R6  | "No scroll" form plus keyboard and persistent save button on small viewports.                                                                             | Compact layout, sticky save bar, test on 360x640 viewport in Playwright.                                         |
+| R7  | Client "default start = last end" can be stale (other device/tab).                                                                                        | Compute on server render and after each save; server re-validates overlap anyway.                                |
+| R8  | Coverage threshold (> 80%) failing `npm test` due to scope config.                                                                                        | Configure `coverage.include` / thresholds early; keep logic in `src/lib` and `src/features`.                     |
+| R9  | Docker: migrations in runner need Prisma CLI and config (TS config needs `tsx`/deps in the image); standalone output tracing misses Prisma engines files. | Verify the image builds and migrates early (Phase 9); copy required node_modules explicitly.                     |
+| R10 | Unicode/accents in categories (`Dîner`, `Création`, `Écouter`) in URL filters and DB values.                                                              | Use exact constant values; test filters with accented values.                                                    |
+| R11 | Zod 4 API differences (`superRefine` path issues, error format).                                                                                          | Verify against Zod 4 docs; test schema thoroughly.                                                               |
 
 ## Assumptions
 
