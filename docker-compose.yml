@@ -1,0 +1,68 @@
+# Production stack: app + PostgreSQL (PostgreSQL is NOT published on the host).
+#   cp .env.example .env   # then edit the secrets
+#   docker compose up -d
+#   docker compose run --rm seed   # create/update the admin account (explicit, never automatic)
+name: activities-tracking-app-prod
+
+x-database-url: &database-url "postgresql://${POSTGRES_USER:?POSTGRES_USER must be set in .env}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}@postgres:5432/${POSTGRES_DB:?POSTGRES_DB must be set in .env}"
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be set in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB must be set in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      target: runner
+    image: activities-tracking-app:latest
+    environment:
+      DATABASE_URL: *database-url
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET must be set in .env (at least 32 characters)}
+      AUTH_TRUST_HOST: ${AUTH_TRUST_HOST:-true}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Paris}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # One-off admin seed: `docker compose run --rm seed` (idempotent upsert).
+  seed:
+    profiles: [seed]
+    build:
+      context: .
+      target: seed
+    image: activities-tracking-app-seed:latest
+    environment:
+      DATABASE_URL: *database-url
+      # Not enforced here (would block `docker compose up`): the seed fails clearly when unset.
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    command: ["npm", "run", "db:seed"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+volumes:
+  postgres_data:

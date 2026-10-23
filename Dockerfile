@@ -1,0 +1,87 @@
+# syntax=docker/dockerfile:1
+
+# Production image for the Activities Tracking app.
+#   docker build --target runner -t activities-app .   (default target, used by docker-compose.yml)
+#   docker build --target seed   -t activities-seed .  (one-off admin seed, never run automatically)
+
+ARG NODE_IMAGE=node:22-alpine
+
+# ---------------------------------------------------------------------------
+# deps: full dependency tree (dev dependencies included: build + seed need them)
+# ---------------------------------------------------------------------------
+FROM ${NODE_IMAGE} AS deps
+WORKDIR /app
+# The `postinstall` script runs `prisma generate`: it needs the schema and the config.
+COPY package.json package-lock.json prisma.config.ts ./
+COPY src/prisma/schema.prisma ./src/prisma/schema.prisma
+RUN npm ci --no-audit --no-fund
+
+# ---------------------------------------------------------------------------
+# source: dependencies + application source + generated Prisma client
+# ---------------------------------------------------------------------------
+FROM deps AS source
+COPY . .
+RUN npx prisma generate
+
+# ---------------------------------------------------------------------------
+# build: Next.js standalone build
+# ---------------------------------------------------------------------------
+FROM source AS build
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm run build
+
+# ---------------------------------------------------------------------------
+# prisma-cli: isolated Prisma CLI for `prisma migrate deploy` in the runner.
+# Same version as the lockfile; dev-only peers (typescript) are not installed:
+# prisma.config.ts is loaded by Prisma's own TypeScript loader.
+# ---------------------------------------------------------------------------
+FROM ${NODE_IMAGE} AS prisma-cli
+WORKDIR /prisma-cli
+COPY package-lock.json /lockfile/package-lock.json
+RUN PRISMA_VERSION="$(node -p "require('/lockfile/package-lock.json').packages['node_modules/prisma'].version")" \
+  && echo '{"name":"prisma-cli","private":true}' > package.json \
+  && npm install --omit=dev --omit=peer --no-audit --no-fund --no-package-lock "prisma@${PRISMA_VERSION}" \
+  && npm cache clean --force
+
+# ---------------------------------------------------------------------------
+# seed: one-off target (full dependencies + source) running `npm run db:seed`.
+#   docker compose run --rm seed
+# ---------------------------------------------------------------------------
+FROM source AS seed
+ENV NODE_ENV=production \
+  NPM_CONFIG_UPDATE_NOTIFIER=false
+USER node
+CMD ["npm", "run", "db:seed"]
+
+# ---------------------------------------------------------------------------
+# runner: minimal production image (default target)
+# ---------------------------------------------------------------------------
+FROM ${NODE_IMAGE} AS runner
+WORKDIR /app
+ENV NODE_ENV=production \
+  NEXT_TELEMETRY_DISABLED=1 \
+  HOSTNAME=0.0.0.0 \
+  PORT=3000
+
+# Next.js standalone server (server.js + traced node_modules) and static assets.
+COPY --from=build --chown=node:node /app/.next/standalone ./
+COPY --from=build --chown=node:node /app/.next/static ./.next/static
+COPY --from=build --chown=node:node /app/public ./public
+
+# Prisma CLI, config, schema and migrations, kept apart from the standalone
+# node_modules so `prisma/config` resolves next to prisma.config.ts.
+COPY --from=prisma-cli /prisma-cli/node_modules ./prisma-cli/node_modules
+COPY prisma.config.ts ./prisma-cli/prisma.config.ts
+COPY src/prisma/schema.prisma ./prisma-cli/src/prisma/schema.prisma
+COPY src/prisma/migrations ./prisma-cli/src/prisma/migrations
+
+COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
+# Built-in non-root user of the official Node image (uid 1000).
+USER node
+EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:3000/api/health > /dev/null || exit 1
+
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["node", "server.js"]
