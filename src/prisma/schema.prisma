@@ -1,0 +1,38 @@
+// Prisma 7: connection URL is configured in `prisma.config.ts`.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Activity {
+  id          String   @id @default(cuid())
+
+  startAt     DateTime @db.Timestamptz(3)
+  endAt       DateTime @db.Timestamptz(3)
+
+  category    String
+  subcategory String
+
+  notes       String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([startAt])
+  @@index([category])
+  @@index([subcategory])
+}

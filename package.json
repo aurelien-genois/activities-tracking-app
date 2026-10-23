@@ -13,7 +13,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "postinstall": "prisma generate",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev"
   },
   "repository": {
     "type": "git",
