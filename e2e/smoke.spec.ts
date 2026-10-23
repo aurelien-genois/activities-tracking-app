@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
 
+// Anonymous visitor: ignore the saved admin session.
+test.use({ storageState: { cookies: [], origins: [] } });
+
 test("anonymous visitor is redirected to the login page", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveURL(/\/login/);

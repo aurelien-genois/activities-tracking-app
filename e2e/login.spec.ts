@@ -1,17 +1,9 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-const adminEmail = process.env.ADMIN_EMAIL ?? "";
-const adminPassword = process.env.ADMIN_PASSWORD ?? "";
+import { ADMIN_EMAIL as adminEmail, ADMIN_PASSWORD as adminPassword, submitLogin } from "./helpers";
 
-async function submitLogin(page: Page, email: string, password: string) {
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
-  // Wait for the Server Action round trip so consecutive attempts never overlap.
-  await Promise.all([
-    page.waitForResponse((response) => response.request().method() === "POST"),
-    page.getByRole("button", { name: "Sign in" }).click(),
-  ]);
-}
+// These tests start signed out (the project default is the saved admin session).
+test.use({ storageState: { cookies: [], origins: [] } });
 
 test("User logs in successfully", async ({ page }) => {
   test.skip(!adminEmail || !adminPassword, "ADMIN_EMAIL / ADMIN_PASSWORD are not set");

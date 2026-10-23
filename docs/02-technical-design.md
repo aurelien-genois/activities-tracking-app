@@ -139,7 +139,7 @@ Schema exactly as specified (User, Activity; timestamps only; indexes on `startA
 | E2E       | Playwright (chromium, mobile viewport 390x844) | login, create + appears in recent, overlap rejected, edit, delete                                                                                                                                                                                                         |
 
 - Coverage: `@vitest/coverage-v8`, `coverage.include: ["src/lib/**", "src/features/**"]`, exclude tests/`src/app/**`/`src/components/ui/**`/generated; thresholds 80% (lines, functions, statements, branches) so `npm run test` fails below it. Server Actions and DB-dependent code mock Prisma in unit tests and are covered end-to-end.
-- `npm run test` = Vitest only; e2e via `npm run test:e2e`. E2E uses a seeded DB; each spec cleans activities (via Prisma in `beforeEach`) for determinism. Time-sensitive e2e avoid future-time checks by using past dates.
+- `npm run test` = Vitest only; e2e via `npm run test:e2e`. E2E uses a seeded DB and runs serially (`workers: 1`); each spec deletes all activities in `beforeEach`/`afterEach` for determinism (`e2e/helpers.ts`, plain `pg` SQL because the generated Prisma client is ESM-only and cannot be loaded by Playwright's CommonJS runner). A `setup` project logs in once and the specs reuse the saved session (`playwright/.auth/`, gitignored). Time-sensitive e2e avoid future-time checks by using past dates in `APP_TIMEZONE`.
 
 ## 7. Docker architecture
 

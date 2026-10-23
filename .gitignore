@@ -18,6 +18,7 @@ next-env.d.ts
 /test-results
 /blob-report
 /playwright/.cache
+/playwright/.auth
 
 # prisma generated client
 /src/generated
