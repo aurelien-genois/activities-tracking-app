@@ -6,6 +6,8 @@ export interface RateLimiterOptions {
   windowMs?: number;
   /** Minimum delay between two sweeps of expired entries. */
   cleanupIntervalMs?: number;
+  /** Maximum number of tracked keys; the least recently updated key is evicted beyond it. */
+  maxKeys?: number;
   /** Injectable clock (milliseconds), for tests. */
   now?: () => number;
 }
@@ -13,6 +15,8 @@ export interface RateLimiterOptions {
 export interface RateLimiter {
   isLimited(key: string): boolean;
   recordFailure(key: string): void;
+  /** Removes the most recent recorded failure (e.g. a reserved attempt that succeeded). */
+  refund(key: string): void;
   reset(key: string): void;
   /** Number of keys currently tracked (exposed for tests). */
   size(): number;
@@ -26,6 +30,7 @@ export function createRateLimiter({
   limit = 5,
   windowMs = 15 * 60 * 1000,
   cleanupIntervalMs = 60 * 1000,
+  maxKeys = 10_000,
   now = Date.now,
 }: RateLimiterOptions = {}): RateLimiter {
   const failures = new Map<string, number[]>();
@@ -50,6 +55,18 @@ export function createRateLimiter({
     }
   }
 
+  // Bounds memory: drop expired entries, then the least recently updated keys
+  // (Map iteration follows insertion order, refreshed on every update).
+  function makeRoomFor(key: string, currentTime: number): void {
+    if (failures.has(key) || failures.size < maxKeys) return;
+    lastCleanup = currentTime;
+    for (const existing of [...failures.keys()]) recent(existing, currentTime);
+    for (const oldest of failures.keys()) {
+      if (failures.size < maxKeys) break;
+      failures.delete(oldest);
+    }
+  }
+
   return {
     isLimited(key) {
       const currentTime = now();
@@ -59,7 +76,19 @@ export function createRateLimiter({
     recordFailure(key) {
       const currentTime = now();
       cleanupIfDue(currentTime);
-      failures.set(key, [...recent(key, currentTime), currentTime]);
+      const timestamps = recent(key, currentTime);
+      makeRoomFor(key, currentTime);
+      failures.delete(key);
+      failures.set(key, [...timestamps, currentTime]);
+    },
+    refund(key) {
+      const timestamps = failures.get(key);
+      if (!timestamps) return;
+      if (timestamps.length <= 1) {
+        failures.delete(key);
+      } else {
+        failures.set(key, timestamps.slice(0, -1));
+      }
     },
     reset(key) {
       failures.delete(key);
@@ -74,12 +103,38 @@ export function loginRateLimitKey(ip: string, email: string): string {
   return `${ip}:${email}`;
 }
 
-const globalForLimiter = globalThis as unknown as { loginRateLimiter?: RateLimiter };
+export interface LoginRateLimiters {
+  /** Failures per IP + email. */
+  credentials: RateLimiter;
+  /** Failures per IP, whatever the email (stops email spraying from one client). */
+  ip: RateLimiter;
+  /** Failures across all clients: caps the bcrypt work an attacker can trigger. */
+  global: RateLimiter;
+}
+
+export const LOGIN_LIMITS = {
+  credentials: 5,
+  ip: 20,
+  global: 100,
+} as const;
+
+export function createLoginRateLimiters(
+  options: Omit<RateLimiterOptions, "limit"> = {},
+): LoginRateLimiters {
+  return {
+    credentials: createRateLimiter({ ...options, limit: LOGIN_LIMITS.credentials }),
+    ip: createRateLimiter({ ...options, limit: LOGIN_LIMITS.ip }),
+    global: createRateLimiter({ ...options, limit: LOGIN_LIMITS.global }),
+  };
+}
+
+const globalForLimiter = globalThis as unknown as { loginRateLimiters?: LoginRateLimiters };
 
 /**
- * Shared limiter for login attempts: 5 failures per 15 minutes per IP + email.
- * Kept on `globalThis` so the Server Action and the Auth.js route handler,
- * bundled separately by Next.js, share one state.
+ * Shared login limiters, each over a 15-minute sliding window: 5 failures per
+ * IP + email, 20 per IP and 100 overall. Kept on `globalThis` so the Server
+ * Action and the Auth.js route handler, bundled separately by Next.js, share
+ * one state.
  */
-export const loginRateLimiter: RateLimiter = (globalForLimiter.loginRateLimiter ??=
-  createRateLimiter());
+export const loginRateLimiters: LoginRateLimiters = (globalForLimiter.loginRateLimiters ??=
+  createLoginRateLimiters());

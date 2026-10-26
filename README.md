@@ -6,7 +6,9 @@ for a single administrator. Self-hosted with Docker Compose.
 ## Features
 
 - Single admin account (Credentials login, Auth.js), no registration; every page is protected.
-- Login rate limit: 5 failed attempts per 15 minutes per IP + email (in-memory).
+- Login rate limit (in-memory, 15-minute sliding window, checked before any password hashing):
+  5 failed attempts per IP + email, 20 per IP, 100 overall.
+- Security headers on every response (CSP, `X-Frame-Options`, `nosniff`, HSTS in production...).
 - Quick entry form: date, start/end time with smart defaults, category and subcategory chips,
   optional note.
 - Validation on client and server (Zod): end after start, no future activity, same calendar day,
@@ -45,11 +47,13 @@ See [`.env.example`](.env.example).
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD`                     | seed                 | Admin account created/updated by the seed.                          |
 | `APP_TIMEZONE`                                      | app                  | IANA time zone (default `Europe/Paris`).                            |
 | `AUTH_SECRET`                                       | app                  | Auth.js secret, at least 32 characters (`openssl rand -base64 32`). |
-| `AUTH_TRUST_HOST`                                   | app                  | `true` in Docker / behind a reverse proxy.                          |
+| `AUTH_TRUST_HOST`                                   | app                  | `true` in Docker / behind a reverse proxy (Auth.js host only).      |
+| `TRUST_PROXY_HOPS`                                  | app                  | Trusted proxies appending to `X-Forwarded-For` (default `0`).       |
 | `DATABASE_URL`                                      | app, Prisma CLI, e2e | Local development only; composed automatically in Docker Compose.   |
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Docker Compose       | Database credentials (use a URL-safe password).                     |
 | `POSTGRES_PORT`                                     | dev compose          | Host port of the development database (bound to `127.0.0.1`).       |
 | `APP_PORT`                                          | prod compose         | Host port published for the app (default `3000`).                   |
+| `APP_BIND`                                          | prod compose         | Host interface of the published port (default `127.0.0.1`).         |
 
 ## Scripts
 
@@ -115,8 +119,9 @@ docker compose ps       # both services should become "healthy"
 docker compose run --rm seed   # create/update the admin account (idempotent, re-run to rotate the password)
 ```
 
-The app listens on `http://localhost:${APP_PORT:-3000}`. Compose refuses to start if a required
-variable (`AUTH_SECRET`, `POSTGRES_*`) is missing.
+The app listens on `http://127.0.0.1:${APP_PORT:-3000}` (localhost only; set `APP_BIND=0.0.0.0`
+only if it must be reachable without a local reverse proxy). Compose refuses to start if a
+required variable (`AUTH_SECRET`, `POSTGRES_*`) is missing.
 
 - **Logs**: `docker compose logs -f app` (or `postgres`).
 - **Update**: `git pull && docker compose up -d --build` (migrations run on start), then
@@ -132,15 +137,24 @@ variable (`AUTH_SECRET`, `POSTGRES_*`) is missing.
 
 ### Reverse proxy and HTTPS
 
-Expose the app through a reverse proxy (Caddy, Traefik, nginx...) that terminates HTTPS, and
-ideally bind the published port to localhost only (e.g. `127.0.0.1:3000:3000`).
+Expose the app through a reverse proxy (Caddy, Traefik, nginx...) that terminates HTTPS. The
+published port is bound to `127.0.0.1` by default (`APP_BIND`) so the proxy is the only entry point.
 
 - Keep `AUTH_TRUST_HOST=true` so Auth.js uses the `Host` / `X-Forwarded-*` headers from the proxy.
-- **Security**: with `AUTH_TRUST_HOST=true` the login rate limiter identifies clients by the first
-  `X-Forwarded-For` value. The proxy must **overwrite** this header with the real client IP (not
-  append to a client-supplied value), and the app must not be reachable without the proxy,
-  otherwise the rate limit can be bypassed by spoofing the header. Example for nginx:
-  `proxy_set_header X-Forwarded-For $remote_addr;`.
+  It does not affect the login rate limiter.
+- **Client IP for the login rate limiter**: set `TRUST_PROXY_HOPS` to the number of reverse proxies
+  in front of the app (usually `1`). The limiter then uses the `X-Forwarded-For` entry appended by
+  the outermost trusted proxy, counted from the right; values a client puts on the left are
+  ignored. Each proxy must append (`proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`
+  for nginx, the default for Caddy and Traefik) or overwrite the header. Only set it when the app
+  cannot be reached without the proxy, otherwise a client could forge the right-most entry.
+- With the default `TRUST_PROXY_HOPS=0` every client shares one "unknown" IP bucket.
+- **Lockout trade-off**: the limits (5 failures per IP + email, 20 per IP, 100 overall per 15
+  minutes) bound brute force and bcrypt CPU usage, but anyone can temporarily block logins: for the
+  admin email from their IP bucket, for everyone in the shared bucket when `TRUST_PROXY_HOPS=0`, or
+  globally with 100 failures (several IPs needed when the client IP is known). A block lifts as
+  failures leave the 15-minute window, or on restart (state is in memory). Configure
+  `TRUST_PROXY_HOPS` in production so one client cannot lock out others.
 
 ## Project structure
 
@@ -150,7 +164,7 @@ src/
   components/ui/        shadcn/ui components
   features/activities/  Activity schema, validation, overlap, queries, Server Actions, components
   features/auth/        Login action, credentials check, client IP, login form
-  lib/                  Prisma client, env validation, date/time utils, rate limiter, seed logic
+  lib/                  Prisma client, env validation, date/time utils, rate limiter, security headers, seed logic
   prisma/               Prisma schema, migrations and seed script
   auth.ts, auth.config.ts, middleware.ts   Auth.js setup and route protection
 e2e/                    Playwright specs

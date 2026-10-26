@@ -12,6 +12,7 @@ describe("parseEnv", () => {
     expect(parseEnv(validEnv)).toEqual({
       ...validEnv,
       AUTH_TRUST_HOST: false,
+      TRUST_PROXY_HOPS: 0,
       APP_TIMEZONE: "Europe/Paris",
     });
   });
@@ -45,6 +46,18 @@ describe("parseEnv", () => {
 
   it("rejects an invalid AUTH_TRUST_HOST", () => {
     expect(() => parseEnv({ ...validEnv, AUTH_TRUST_HOST: "yes" })).toThrow(/AUTH_TRUST_HOST/);
+  });
+
+  it("parses TRUST_PROXY_HOPS independently of AUTH_TRUST_HOST", () => {
+    expect(parseEnv({ ...validEnv, AUTH_TRUST_HOST: "true" }).TRUST_PROXY_HOPS).toBe(0);
+    expect(parseEnv({ ...validEnv, TRUST_PROXY_HOPS: "" }).TRUST_PROXY_HOPS).toBe(0);
+    expect(parseEnv({ ...validEnv, TRUST_PROXY_HOPS: "2" }).TRUST_PROXY_HOPS).toBe(2);
+  });
+
+  it.each(["-1", "1.5", "yes", "true", "100"])("rejects TRUST_PROXY_HOPS=%s", (value) => {
+    expect(() => parseEnv({ ...validEnv, TRUST_PROXY_HOPS: value })).toThrow(
+      /TRUST_PROXY_HOPS: must be a non-negative integer/,
+    );
   });
 
   it("rejects an unknown time zone", () => {

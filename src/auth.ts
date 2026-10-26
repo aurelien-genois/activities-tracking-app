@@ -14,7 +14,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // `request` carries the original headers, both for the login Server
       // Action and for direct POSTs to /api/auth/callback/credentials.
       authorize: (credentials, request) =>
-        authorizeCredentials(credentials, getClientIp(request.headers, getEnv().AUTH_TRUST_HOST)),
+        authorizeCredentials(credentials, getClientIp(request.headers, getEnv().TRUST_PROXY_HOPS)),
     }),
   ],
 });

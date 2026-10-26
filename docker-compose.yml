@@ -32,9 +32,12 @@ services:
       DATABASE_URL: *database-url
       AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET must be set in .env (at least 32 characters)}
       AUTH_TRUST_HOST: ${AUTH_TRUST_HOST:-true}
+      # Reverse proxies appending to X-Forwarded-For (0 = ignore it; see README).
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-0}
       APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Paris}
     ports:
-      - "${APP_PORT:-3000}:3000"
+      # Localhost only by default: expose the app through the reverse proxy.
+      - "${APP_BIND:-127.0.0.1}:${APP_PORT:-3000}:3000"
     depends_on:
       postgres:
         condition: service_healthy

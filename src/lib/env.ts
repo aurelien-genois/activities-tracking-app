@@ -16,6 +16,12 @@ export const envSchema = z.object({
     .enum(["true", "false"])
     .optional()
     .transform((value) => value === "true"),
+  // Number of trusted reverse proxies appending to X-Forwarded-For (0 = ignore it).
+  TRUST_PROXY_HOPS: z
+    .string()
+    .regex(/^\d{1,2}$/, "must be a non-negative integer")
+    .optional()
+    .transform((value) => (value === undefined ? 0 : Number(value))),
   APP_TIMEZONE: z
     .string()
     .default("Europe/Paris")

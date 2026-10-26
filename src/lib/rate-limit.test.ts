@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { createRateLimiter, loginRateLimitKey, loginRateLimiter } from "./rate-limit";
+import {
+  createLoginRateLimiters,
+  createRateLimiter,
+  LOGIN_LIMITS,
+  loginRateLimiters,
+  loginRateLimitKey,
+} from "./rate-limit";
 
 const MINUTE = 60 * 1000;
 
@@ -75,6 +81,47 @@ describe("createRateLimiter", () => {
     expect(limiter.size()).toBe(0);
   });
 
+  it("refunds the most recent failure", () => {
+    const { limiter } = setup();
+    for (let i = 0; i < 5; i++) limiter.recordFailure("k");
+    limiter.refund("k");
+    expect(limiter.isLimited("k")).toBe(false);
+    for (let i = 0; i < 4; i++) limiter.refund("k");
+    expect(limiter.size()).toBe(0);
+    limiter.refund("missing");
+    expect(limiter.size()).toBe(0);
+  });
+
+  it("caps the number of keys by evicting the least recently updated one", () => {
+    const limiter = createRateLimiter({ maxKeys: 3, now: () => 1_000 });
+    limiter.recordFailure("a");
+    limiter.recordFailure("b");
+    limiter.recordFailure("c");
+    limiter.recordFailure("a"); // refreshes "a": "b" becomes the oldest
+    limiter.recordFailure("d");
+    expect(limiter.size()).toBe(3);
+    for (let i = 0; i < 4; i++) limiter.recordFailure("a");
+    expect(limiter.isLimited("a")).toBe(true);
+    for (let i = 0; i < 100; i++) limiter.recordFailure(`spray-${i}`);
+    expect(limiter.size()).toBe(3);
+  });
+
+  it("prunes expired entries before evicting live ones", () => {
+    const { clock } = setup();
+    // No periodic sweep: only the eviction path can prune.
+    const limiter = createRateLimiter({ maxKeys: 2, cleanupIntervalMs: Infinity, now: clock.now });
+    limiter.recordFailure("expired");
+    clock.advance(10 * MINUTE);
+    for (let i = 0; i < 5; i++) limiter.recordFailure("live");
+    clock.advance(6 * MINUTE); // "expired" left the window, "live" did not
+    limiter.recordFailure("new");
+    expect(limiter.size()).toBe(2);
+    expect(limiter.isLimited("live")).toBe(true);
+    limiter.recordFailure("newer"); // nothing expired: evicts "live", the oldest
+    expect(limiter.size()).toBe(2);
+    expect(limiter.isLimited("live")).toBe(false);
+  });
+
   it("supports custom limits and the default clock", () => {
     const limiter = createRateLimiter({ limit: 1 });
     limiter.recordFailure("k");
@@ -87,8 +134,21 @@ describe("login rate limiting helpers", () => {
     expect(loginRateLimitKey("1.2.3.4", "a@b.c")).toBe("1.2.3.4:a@b.c");
   });
 
-  it("exposes a limiter shared through globalThis", () => {
-    expect(loginRateLimiter.isLimited("unused")).toBe(false);
-    expect((globalThis as { loginRateLimiter?: unknown }).loginRateLimiter).toBe(loginRateLimiter);
+  it("creates per IP + email, per IP and global limiters", () => {
+    const limiters = createLoginRateLimiters({ now: () => 0 });
+    for (const [name, limit] of Object.entries(LOGIN_LIMITS)) {
+      const limiter = limiters[name as keyof typeof LOGIN_LIMITS];
+      for (let i = 0; i < limit - 1; i++) limiter.recordFailure("k");
+      expect(limiter.isLimited("k")).toBe(false);
+      limiter.recordFailure("k");
+      expect(limiter.isLimited("k")).toBe(true);
+    }
+  });
+
+  it("exposes limiters shared through globalThis", () => {
+    expect(loginRateLimiters.credentials.isLimited("unused")).toBe(false);
+    expect((globalThis as { loginRateLimiters?: unknown }).loginRateLimiters).toBe(
+      loginRateLimiters,
+    );
   });
 });
