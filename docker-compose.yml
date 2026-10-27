@@ -35,9 +35,12 @@ services:
       # Reverse proxies appending to X-Forwarded-For (0 = ignore it; see README).
       TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-0}
       APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Paris}
-    ports:
-      # Localhost only by default: expose the app through the reverse proxy.
-      - "${APP_BIND:-127.0.0.1}:${APP_PORT:-3000}:3000"
+      VIRTUAL_HOST: ${SSL_DOMAIN:?SSL_DOMAIN must be set in .env}
+      VIRTUAL_PATH: /
+      VIRTUAL_PORT: 3000
+      LETSENCRYPT_HOST: ${SSL_DOMAIN}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:?LETSENCRYPT_EMAIL must be set in .env}
+    # No published host port: nginx-proxy reaches the app over proxy_default.
     depends_on:
       postgres:
         condition: service_healthy
@@ -48,6 +51,10 @@ services:
       retries: 3
       start_period: 30s
     restart: unless-stopped
+    networks:
+      # default: private link to postgres; proxy_default: reachable by nginx-proxy.
+      - default
+      - proxy_default
 
   # One-off admin seed: `docker compose run --rm seed` (idempotent upsert).
   seed:
@@ -69,3 +76,7 @@ services:
 
 volumes:
   postgres_data:
+
+networks:
+  proxy_default:
+    external: true

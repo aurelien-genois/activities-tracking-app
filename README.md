@@ -52,8 +52,8 @@ See [`.env.example`](.env.example).
 | `DATABASE_URL`                                      | app, Prisma CLI, e2e | Local development only; composed automatically in Docker Compose.   |
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Docker Compose       | Database credentials (use a URL-safe password).                     |
 | `POSTGRES_PORT`                                     | dev compose          | Host port of the development database (bound to `127.0.0.1`).       |
-| `APP_PORT`                                          | prod compose         | Host port published for the app (default `3000`).                   |
-| `APP_BIND`                                          | prod compose         | Host interface of the published port (default `127.0.0.1`).         |
+| `SSL_DOMAIN`                                        | prod compose         | Public domain served by nginx-proxy (`VIRTUAL_HOST`).               |
+| `LETSENCRYPT_EMAIL`                                 | prod compose         | Contact email for acme-companion.                                   |
 
 ## Scripts
 
@@ -119,9 +119,10 @@ docker compose ps       # both services should become "healthy"
 docker compose run --rm seed   # create/update the admin account (idempotent, re-run to rotate the password)
 ```
 
-The app listens on `http://127.0.0.1:${APP_PORT:-3000}` (localhost only; set `APP_BIND=0.0.0.0`
-only if it must be reachable without a local reverse proxy). Compose refuses to start if a
-required variable (`AUTH_SECRET`, `POSTGRES_*`) is missing.
+The app publishes no host port: it is reached by nginx-proxy over the external `proxy_default`
+Docker network (which must already exist) using `SSL_DOMAIN` and `LETSENCRYPT_EMAIL`. Compose
+refuses to start if a required variable (`AUTH_SECRET`, `POSTGRES_*`, `SSL_DOMAIN`,
+`LETSENCRYPT_EMAIL`) is missing.
 
 - **Logs**: `docker compose logs -f app` (or `postgres`).
 - **Update**: `git pull && docker compose up -d --build` (migrations run on start), then
@@ -137,8 +138,8 @@ required variable (`AUTH_SECRET`, `POSTGRES_*`) is missing.
 
 ### Reverse proxy and HTTPS
 
-Expose the app through a reverse proxy (Caddy, Traefik, nginx...) that terminates HTTPS. The
-published port is bound to `127.0.0.1` by default (`APP_BIND`) so the proxy is the only entry point.
+The app is exposed through nginx-proxy + acme-companion, which terminate HTTPS; since no host port
+is published, the proxy is the only entry point.
 
 - Keep `AUTH_TRUST_HOST=true` so Auth.js uses the `Host` / `X-Forwarded-*` headers from the proxy.
   It does not affect the login rate limiter.

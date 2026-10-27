@@ -1,0 +1,142 @@
+name: CD
+
+# Deploys to a server over SSH once CI has succeeded on main (or on manual trigger).
+# The server needs git and Docker Compose; the stack is built and started there.
+#
+# Repository settings (Settings > Secrets and variables > Actions) or, better, the
+# "production" Environment:
+#
+#   Secrets
+#     SSH_PRIVATE_KEY     private key authorized on the server (deploy user)
+#     SSH_KNOWN_HOSTS     output of `ssh-keyscan -H <host>` (pins the host key)
+#     AUTH_SECRET         Auth.js secret, 32+ characters
+#     POSTGRES_PASSWORD   URL-safe database password
+#     POSTGRES_USER       database user
+#     POSTGRES_DB         database name
+#     DEPLOY_HOST         server hostname or IP
+#     DEPLOY_USER         SSH user (must be able to run docker)
+#     DEPLOY_SSH_PORT     optional, default 22
+#     DEPLOY_PATH         absolute checkout path on the server, e.g. /opt/activities-tracking-app
+#
+#   Variables
+#     APP_TIMEZONE        optional, default Europe/Paris
+#     TRUST_PROXY_HOPS    optional, default 0
+#     SSL_DOMAIN          public domain served by nginx-proxy (e.g. example.com)
+#     LETSENCRYPT_EMAIL   contact email for acme-companion
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: cd-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to production
+    # Only after a successful CI run (manual runs always proceed).
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    env:
+      DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+      DEPLOY_SSH_PORT: ${{ vars.DEPLOY_SSH_PORT || '22' }}
+      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      REPO_URL: https://github.com/${{ github.repository }}.git
+    steps:
+      - name: Validate configuration
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_USER: ${{ vars.POSTGRES_USER }}
+          POSTGRES_DB: ${{ vars.POSTGRES_DB }}
+          SSL_DOMAIN: ${{ vars.SSL_DOMAIN }}
+          LETSENCRYPT_EMAIL: ${{ vars.LETSENCRYPT_EMAIL }}
+        run: |
+          missing=0
+          for v in DEPLOY_HOST DEPLOY_USER DEPLOY_PATH SSH_PRIVATE_KEY AUTH_SECRET POSTGRES_PASSWORD POSTGRES_USER POSTGRES_DB SSL_DOMAIN LETSENCRYPT_EMAIL; do
+            if [ -z "${!v}" ]; then echo "::error::Missing required secret/variable: $v"; missing=1; fi
+          done
+          exit $missing
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          if [ -n "$SSH_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -p "$DEPLOY_SSH_PORT" -H "$DEPLOY_HOST" > ~/.ssh/known_hosts
+          fi
+
+      # The .env is streamed over SSH stdin so secrets never appear in process lists or logs.
+      - name: Deploy
+        env:
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_USER: ${{ vars.POSTGRES_USER }}
+          POSTGRES_DB: ${{ vars.POSTGRES_DB }}
+          SSL_DOMAIN: ${{ vars.SSL_DOMAIN }}
+          APP_TIMEZONE: ${{ vars.APP_TIMEZONE || 'Europe/Paris' }}
+          TRUST_PROXY_HOPS: ${{ vars.TRUST_PROXY_HOPS || '0' }}
+          LETSENCRYPT_EMAIL: ${{ vars.LETSENCRYPT_EMAIL }}
+        run: |
+          {
+            printf 'AUTH_SECRET=%s\n' "$AUTH_SECRET"
+            printf 'AUTH_TRUST_HOST=true\n'
+            printf 'POSTGRES_USER=%s\n' "$POSTGRES_USER"
+            printf 'POSTGRES_PASSWORD=%s\n' "$POSTGRES_PASSWORD"
+            printf 'POSTGRES_DB=%s\n' "$POSTGRES_DB"
+            printf 'APP_TIMEZONE=%s\n' "$APP_TIMEZONE"
+            printf 'TRUST_PROXY_HOPS=%s\n' "$TRUST_PROXY_HOPS"
+            printf 'LETSENCRYPT_EMAIL=%s\n' "$LETSENCRYPT_EMAIL"
+            printf 'SSL_DOMAIN=%s\n' "$SSL_DOMAIN"
+          } | ssh -i ~/.ssh/id_deploy -p "$DEPLOY_SSH_PORT" -o BatchMode=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" 'umask 077 && cat > /tmp/activities.env.new'
+
+          ssh -i ~/.ssh/id_deploy -p "$DEPLOY_SSH_PORT" -o BatchMode=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "DEPLOY_PATH='$DEPLOY_PATH' DEPLOY_SHA='$DEPLOY_SHA' REPO_URL='$REPO_URL' bash -s" <<'REMOTE'
+          set -euo pipefail
+          [ -d "$DEPLOY_PATH/.git" ] || git clone "$REPO_URL" "$DEPLOY_PATH"
+          cd "$DEPLOY_PATH"
+          git fetch --prune origin
+          git checkout --force --detach "$DEPLOY_SHA"
+          mv /tmp/activities.env.new .env
+          docker compose up -d --build --remove-orphans
+          # Only dangling images older than 24h (superseded builds): never a running
+          # container's image nor any volume, and other apps simply rebuild theirs.
+          docker image prune -f --filter "until=24h"
+          REMOTE
+
+      - name: Health check
+        run: |
+          ssh -i ~/.ssh/id_deploy -p "$DEPLOY_SSH_PORT" -o BatchMode=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "cd '$DEPLOY_PATH' && for i in \$(seq 1 30); do
+               s=\$(docker inspect -f '{{.State.Health.Status}}' \$(docker compose ps -q app) 2>/dev/null || true)
+               echo \"app health: \$s\"
+               [ \"\$s\" = healthy ] && exit 0
+               sleep 5
+             done
+             docker compose logs --tail 100 app
+             exit 1"
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f ~/.ssh/id_deploy
