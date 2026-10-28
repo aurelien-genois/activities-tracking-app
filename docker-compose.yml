@@ -50,7 +50,8 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
-    restart: unless-stopped
+    # Bounded retries: a failing migration or unreachable database stops the app instead of looping.
+    restart: on-failure:5
     networks:
       # default: private link to postgres; proxy_default: reachable by nginx-proxy.
       - default

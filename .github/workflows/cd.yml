@@ -68,6 +68,13 @@ jobs:
           for v in DEPLOY_HOST DEPLOY_USER DEPLOY_PATH SSH_PRIVATE_KEY AUTH_SECRET POSTGRES_PASSWORD POSTGRES_USER POSTGRES_DB SSL_DOMAIN LETSENCRYPT_EMAIL; do
             if [ -z "${!v}" ]; then echo "::error::Missing required secret/variable: $v"; missing=1; fi
           done
+          # User and password are embedded unencoded in DATABASE_URL: only RFC 3986 unreserved characters.
+          for v in POSTGRES_USER POSTGRES_PASSWORD; do
+            if [ -n "${!v}" ] && [[ "${!v}" =~ [^A-Za-z0-9._~-] ]]; then
+              echo "::error::$v must only contain letters, digits and . _ ~ - (it is embedded in DATABASE_URL)"
+              missing=1
+            fi
+          done
           exit $missing
 
       - name: Configure SSH

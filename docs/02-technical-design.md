@@ -150,7 +150,7 @@ Schema exactly as specified (User, Activity; timestamps only; indexes on `startA
 - **Entrypoint**: `set -e; npx prisma migrate deploy; exec node server.js` - container exits non-zero if migration fails.
 - **docker-compose.yml**:
   - `postgres`: `postgres:17-alpine`, env `POSTGRES_USER/PASSWORD/DB` from `.env`, named volume `postgres_data`, healthcheck `pg_isready -U $POSTGRES_USER -d $POSTGRES_DB` (interval 10s, timeout 5s, retries 5), `restart: unless-stopped`, no published port.
-  - `app`: built from Dockerfile, `DATABASE_URL` composed from `POSTGRES_*` (host `postgres`), `AUTH_SECRET`, `AUTH_TRUST_HOST`, `APP_TIMEZONE`; `depends_on: postgres: condition: service_healthy`; healthcheck `wget -qO- http://localhost:3000/api/health`; `restart: unless-stopped`; port 3000 published.
+  - `app`: built from Dockerfile, `DATABASE_URL` composed from `POSTGRES_*` (host `postgres`), `AUTH_SECRET`, `AUTH_TRUST_HOST`, `APP_TIMEZONE`; `depends_on: postgres: condition: service_healthy`; healthcheck `wget -qO- http://localhost:3000/api/health`; `restart: on-failure:5` (bounded retries, so a failing migration does not loop forever); port 3000 published.
 - Seed run explicitly: `docker compose run --rm app npm run db:seed` (requires the runner to include `tsx`, `bcryptjs` and the seed file - decision: include them in the runner or provide a dedicated `seed` target; settled in Phase 9).
 - `.env.example` documented, `.env` gitignored; `.dockerignore` excludes `node_modules`, `.next`, `.git`, `.env*`, `e2e`, docs, test artifacts.
 - Optional `docker-compose.dev.yml` (postgres only, published on localhost) for local development.
