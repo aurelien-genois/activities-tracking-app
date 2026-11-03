@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { nowTimeInTz, todayInTz } from "@/lib/datetime";
+import { nowTimeInTz } from "@/lib/datetime";
 
 const { createActivity, toastSuccess } = vi.hoisted(() => ({
   createActivity: vi.fn(),
@@ -61,6 +61,17 @@ describe("ActivityForm", () => {
     expect(within(categoryGroup()).getAllByRole("button")).toHaveLength(6);
     expect(screen.queryByRole("group", { name: "Subcategory" })).not.toBeInTheDocument();
     expect(screen.getByText("Select a category first.")).toBeInTheDocument();
+    expect(saveButton()).toBeDisabled();
+  });
+
+  it("enables Save only after all required fields are filled", async () => {
+    const { user } = renderForm();
+    expect(saveButton()).toBeDisabled();
+
+    await user.click(chip(categoryGroup(), "TRAVAIL"));
+    expect(saveButton()).toBeDisabled();
+
+    await user.click(chip(subcategoryGroup(), "Job"));
     expect(saveButton()).toBeEnabled();
   });
 
@@ -106,7 +117,7 @@ describe("ActivityForm", () => {
 
   it("shows required category and subcategory messages without submitting", async () => {
     const { user } = renderForm();
-    await user.click(saveButton());
+    fireEvent.submit(screen.getByRole("form", { name: "New activity" }));
 
     expect(screen.getByText("Category is required.")).toBeInTheDocument();
     expect(screen.getByText("Subcategory is required.")).toBeInTheDocument();
@@ -163,7 +174,7 @@ describe("ActivityForm", () => {
 
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith("Activity saved"));
     // The toast fires inside the transition: wait for it to settle before asserting the reset.
-    await waitFor(() => expect(saveButton()).toBeEnabled());
+    await waitFor(() => expect(saveButton()).toBeDisabled());
     expect(createActivity).toHaveBeenCalledWith({
       ...initialValues,
       category: "TRAVAIL",
@@ -172,7 +183,7 @@ describe("ActivityForm", () => {
     });
 
     const now = new Date();
-    expect(screen.getByLabelText("Date")).toHaveValue(todayInTz(now, TZ));
+    expect(screen.getByLabelText("Date")).toHaveValue(initialValues.date);
     expect(screen.getByLabelText("Start Time")).toHaveValue("10:00");
     // Allow a minute boundary between the reset and this assertion.
     expect([nowTimeInTz(now, TZ), nowTimeInTz(new Date(now.getTime() - 60_000), TZ)]).toContain(
@@ -182,7 +193,20 @@ describe("ActivityForm", () => {
     expect(screen.queryByRole("group", { name: "Subcategory" })).not.toBeInTheDocument();
     expect(screen.getByLabelText("Optional note")).toHaveValue("");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(saveButton()).toBeEnabled();
+    expect(saveButton()).toBeDisabled();
+  });
+
+  it("starts the next activity at midnight on the following date after a 23:59 end", async () => {
+    createActivity.mockResolvedValue({ ok: true, activity: { id: "a1" } });
+    const { user } = renderForm();
+    await selectActivity(user, "TRAVAIL", "Job");
+    fireEvent.change(screen.getByLabelText("End Time"), { target: { value: "23:59" } });
+    await user.click(saveButton());
+
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByLabelText("Date")).toHaveValue("2026-01-16"));
+    expect(screen.getByLabelText("Start Time")).toHaveValue("00:00");
+    expect(screen.getByLabelText("End Time")).toHaveValue(nowTimeInTz(new Date(), TZ));
   });
 
   it("displays the overlap error returned by the action and keeps the values", async () => {
@@ -193,12 +217,15 @@ describe("ActivityForm", () => {
     await user.click(saveButton());
 
     expect(await screen.findByRole("alert")).toHaveTextContent(overlap);
+    expect(screen.getByText("false")).toBeInTheDocument();
+    expect(saveButton()).toBeDisabled();
     expect(chip(subcategoryGroup(), "Job")).toHaveAttribute("aria-pressed", "true");
     expect(toastSuccess).not.toHaveBeenCalled();
 
     // Editing the form clears the stale error.
     fireEvent.change(screen.getByLabelText("Start Time"), { target: { value: "08:00" } });
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(saveButton()).toBeEnabled();
   });
 
   it("displays field errors returned by the action", async () => {
@@ -243,6 +270,6 @@ describe("ActivityForm", () => {
     expect(createActivity).toHaveBeenCalledTimes(1);
 
     resolve({ ok: true, activity: { id: "a1" } });
-    await waitFor(() => expect(screen.getByRole("button", { name: "Save" })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Save" })).toBeDisabled());
   });
 });

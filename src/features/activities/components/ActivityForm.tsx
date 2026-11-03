@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { nowTimeInTz, todayInTz } from "@/lib/datetime";
+import { nowTimeInTz } from "@/lib/datetime";
 
 import { createActivity } from "../actions";
 import { type ActivityFormErrors, validateActivityForm } from "../validate-form";
@@ -26,6 +26,14 @@ export function ActivityForm({ initialValues, timeZone }: ActivityFormProps) {
   const [values, setValues] = useState(initialValues);
   const [errors, setErrors] = useState<Errors>(NO_ERRORS);
   const [isPending, startTransition] = useTransition();
+  const isFormValid =
+    !errors.formError &&
+    Object.keys(errors.fieldErrors).length === 0 &&
+    values.date.trim() !== "" &&
+    values.startTime.trim() !== "" &&
+    values.endTime.trim() !== "" &&
+    values.category !== "" &&
+    values.subcategory.trim() !== "";
 
   function handleChange(patch: Partial<ActivityFieldValues>) {
     const changed = (Object.keys(patch) as (keyof ActivityFieldValues)[]).filter(
@@ -63,11 +71,19 @@ export function ActivityForm({ initialValues, timeZone }: ActivityFormProps) {
         setErrors({ fieldErrors: result.fieldErrors, formError: result.formError });
         return;
       }
-      toast.success(SAVED_MESSAGE);
+      toast.success(SAVED_MESSAGE, {
+        position: "bottom-center",
+        richColors: true,
+        closeButton: true,
+        dismissible: true,
+      });
       const now = new Date();
+      const endsAtDayBoundary = checked.data.endTime === "23:59";
+      const nextDate = new Date(`${checked.data.date}T00:00:00.000Z`);
+      if (endsAtDayBoundary) nextDate.setUTCDate(nextDate.getUTCDate() + 1);
       setValues({
-        date: todayInTz(now, timeZone),
-        startTime: checked.data.endTime,
+        date: endsAtDayBoundary ? nextDate.toISOString().slice(0, 10) : checked.data.date,
+        startTime: endsAtDayBoundary ? "00:00" : checked.data.endTime,
         endTime: nowTimeInTz(now, timeZone),
         category: "",
         subcategory: "",
@@ -100,12 +116,11 @@ export function ActivityForm({ initialValues, timeZone }: ActivityFormProps) {
       ) : null}
 
       {/* Fixed so Save stays visible; the page reserves the matching bottom space. */}
-      <div className="fixed inset-x-0 bottom-0 z-10 border-t bg-background/95 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="mx-auto w-full max-w-md px-4">
-          <Button type="submit" disabled={isPending} className="h-14 w-full text-lg">
-            {isPending ? "Saving…" : "Save"}
-          </Button>
-        </div>
+      <p>{String(isFormValid)}</p>
+      <div className="mx-auto w-full max-w-md px-4">
+        <Button type="submit" disabled={!isFormValid || isPending} className="h-14 w-full text-lg">
+          {isPending ? "Saving…" : "Save"}
+        </Button>
       </div>
     </form>
   );
