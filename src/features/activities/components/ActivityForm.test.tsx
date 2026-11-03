@@ -172,7 +172,9 @@ describe("ActivityForm", () => {
     await user.type(screen.getByLabelText("Optional note"), "Weekly sync");
     await user.click(saveButton());
 
-    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith("Activity saved"));
+    await waitFor(() =>
+      expect(toastSuccess).toHaveBeenCalledWith("Activity saved", expect.any(Object)),
+    );
     // The toast fires inside the transition: wait for it to settle before asserting the reset.
     await waitFor(() => expect(saveButton()).toBeDisabled());
     expect(createActivity).toHaveBeenCalledWith({
@@ -217,7 +219,6 @@ describe("ActivityForm", () => {
     await user.click(saveButton());
 
     expect(await screen.findByRole("alert")).toHaveTextContent(overlap);
-    expect(screen.getByText("false")).toBeInTheDocument();
     expect(saveButton()).toBeDisabled();
     expect(chip(subcategoryGroup(), "Job")).toHaveAttribute("aria-pressed", "true");
     expect(toastSuccess).not.toHaveBeenCalled();
