@@ -104,7 +104,12 @@ export function EditActivityDialog({ activity, timeZone }: EditActivityDialogPro
         return;
       }
       setOpen(false);
-      toast.success(UPDATED_MESSAGE);
+      toast.success(UPDATED_MESSAGE, {
+        position: "bottom-center",
+        richColors: true,
+        closeButton: true,
+        dismissible: true,
+      });
       router.refresh();
     });
   }
