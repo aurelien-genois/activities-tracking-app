@@ -14,12 +14,12 @@ import {
 describe("CATEGORIES", () => {
   it("matches the specification", () => {
     expect(CATEGORIES).toEqual({
-      MANGER: ["Ptit-dej", "Dej", "Gouter", "Dîner"],
+      MANGER: ["Ptit-dej", "Brunch", "Dej", "Goûter", "Dîner"],
       TRAVAIL: ["Job", "Formation", "Création"],
-      DOMESTIQUE: ["Administration", "Courses", "Ménage", "Transport"],
-      LOISIR: ["Jeu-vidéo", "Lecture", "Sortir", "Écouter", "Sport"],
-      REPOS: ["Dormir", "Douche", "Trainer"],
-      FAMILLE: ["Téléphone", "Discussion"],
+      DOMESTIQUE: ["Courses", "Administration", "Ménage", "Préparation", "Transport", "Autre"],
+      LOISIR: ["Jouer", "Lire", "Regarder", "Sortir", "Écouter", "Sport"],
+      REPOS: ["Dormir", "Douche", "Trainer", "Autre"],
+      FAMILLE: ["Téléphone", "Discussion", "Événement", "Activité"],
     });
   });
 
@@ -71,6 +71,11 @@ describe("isSubcategoryOf", () => {
 
 describe("getSubcategories", () => {
   it("returns the subcategories of a category", () => {
-    expect(getSubcategories("FAMILLE")).toEqual(["Téléphone", "Discussion"]);
+    expect(getSubcategories("FAMILLE")).toEqual([
+      "Téléphone",
+      "Discussion",
+      "Événement",
+      "Activité",
+    ]);
   });
 });

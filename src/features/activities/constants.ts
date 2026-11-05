@@ -1,14 +1,14 @@
 export const CATEGORIES = {
   MANGER: ["Ptit-dej", "Brunch", "Dej", "Goûter", "Dîner"],
   TRAVAIL: ["Job", "Formation", "Création"],
-  DOMESTIQUE: ["Courses", "Administration", "Ménage", "Préparation", "Transport","Autre"],
+  DOMESTIQUE: ["Courses", "Administration", "Ménage", "Préparation", "Transport", "Autre"],
   LOISIR: ["Jouer", "Lire", "Regarder", "Sortir", "Écouter", "Sport"],
   REPOS: ["Dormir", "Douche", "Trainer", "Autre"],
   FAMILLE: ["Téléphone", "Discussion", "Événement", "Activité"],
 } as const;
 
 export type Category = keyof typeof CATEGORIES;
- 
+
 export type Subcategory<C extends Category = Category> = (typeof CATEGORIES)[C][number];
 
 export const CATEGORY_KEYS = Object.keys(CATEGORIES) as [Category, ...Category[]];

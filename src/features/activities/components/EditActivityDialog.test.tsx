@@ -99,7 +99,7 @@ describe("EditActivityDialog", () => {
       subcategory: "Dîner",
       notes: "Création",
     });
-    expect(toastSuccess).toHaveBeenCalledWith(UPDATED_MESSAGE);
+    expect(toastSuccess).toHaveBeenCalledWith(UPDATED_MESSAGE, expect.any(Object));
     expect(refresh).toHaveBeenCalled();
   });
 

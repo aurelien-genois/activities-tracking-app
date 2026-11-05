@@ -45,7 +45,7 @@ describe("HistoryFilters", () => {
     const { user } = renderFilters({ q: "x", category: "MANGER", subcategory: "Dîner" });
     expect(chip("Category", "MANGER")).toHaveAttribute("aria-pressed", "true");
     expect(chip("Subcategory", "Dîner")).toHaveAttribute("aria-pressed", "true");
-    expect(within(group("Subcategory")).getAllByRole("button")).toHaveLength(5);
+    expect(within(group("Subcategory")).getAllByRole("button")).toHaveLength(6);
 
     await user.click(chip("Category", "TRAVAIL"));
     expect(push).toHaveBeenLastCalledWith("/history?q=x&category=TRAVAIL");
