@@ -32,6 +32,8 @@ services:
       DATABASE_URL: *database-url
       AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET must be set in .env (at least 32 characters)}
       AUTH_TRUST_HOST: ${AUTH_TRUST_HOST:-true}
+      # Public origin (no path). Must be unset or non-empty: unset is not injected, but an empty value is passed as empty and masks AUTH_TRUST_HOST. Set it behind a reverse proxy (see README).
+      AUTH_URL:
       # Reverse proxies appending to X-Forwarded-For (0 = ignore it; see README).
       TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-0}
       APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Paris}

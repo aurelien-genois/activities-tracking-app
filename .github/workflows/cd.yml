@@ -21,7 +21,7 @@ name: CD
 #   Variables
 #     APP_TIMEZONE        optional, default Europe/Paris
 #     TRUST_PROXY_HOPS    optional, default 0
-#     SSL_DOMAIN          public domain served by nginx-proxy (e.g. example.com)
+#     SSL_DOMAIN          public domain served by nginx-proxy (e.g. example.com); also written as AUTH_URL=https://<domain>
 #     LETSENCRYPT_EMAIL   contact email for acme-companion
 
 on:
@@ -106,7 +106,7 @@ jobs:
           {
             printf 'AUTH_SECRET=%s\n' "$AUTH_SECRET"
             printf 'AUTH_TRUST_HOST=true\n'
-            printf 'POSTGRES_USER=%s\n' "$POSTGRES_USER"
+            printf 'AUTH_URL=https://%s\n' "$SSL_DOMAIN"
             printf 'POSTGRES_PASSWORD=%s\n' "$POSTGRES_PASSWORD"
             printf 'POSTGRES_DB=%s\n' "$POSTGRES_DB"
             printf 'APP_TIMEZONE=%s\n' "$APP_TIMEZONE"
