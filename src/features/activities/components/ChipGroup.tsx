@@ -4,6 +4,8 @@ import { useId } from "react";
 
 import { cn } from "@/lib/utils";
 
+import type { CategoryStyle } from "../categoryColors";
+
 export type ChipGroupProps<T extends string> = {
   label: string;
   options: readonly T[];
@@ -14,6 +16,8 @@ export type ChipGroupProps<T extends string> = {
   invalid?: boolean;
   disabled?: boolean;
   className?: string;
+  /** Optional per-option colour; without it (or when it returns undefined) the neutral chip is used. */
+  styleFor?: (option: T) => CategoryStyle | undefined;
 };
 
 /** Single-selection group of large toggle chips (`aria-pressed`). */
@@ -26,6 +30,7 @@ export function ChipGroup<T extends string>({
   invalid,
   disabled,
   className,
+  styleFor,
 }: ChipGroupProps<T>) {
   const labelId = useId();
 
@@ -42,6 +47,7 @@ export function ChipGroup<T extends string>({
       >
         {options.map((option) => {
           const selected = option === value;
+          const style = styleFor?.(option);
           return (
             <button
               key={option}
@@ -51,9 +57,16 @@ export function ChipGroup<T extends string>({
               onClick={() => onChange(option)}
               className={cn(
                 "flex min-h-12 items-center justify-center rounded-md border px-1.5 text-center text-sm font-medium leading-tight transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:opacity-50",
-                selected
-                  ? "border-primary bg-primary text-primary-foreground shadow"
-                  : "border-input bg-background hover:bg-accent",
+                style
+                  ? [
+                      style.chip,
+                      !(invalid && !selected) && style.hover,
+                      selected && style.selected,
+                      selected && "shadow",
+                    ]
+                  : selected
+                    ? "border-primary bg-primary text-primary-foreground shadow"
+                    : "border-input bg-background hover:bg-accent",
                 invalid && !selected && "border-destructive",
               )}
             >

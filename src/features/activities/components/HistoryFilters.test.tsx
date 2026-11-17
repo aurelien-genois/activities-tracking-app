@@ -68,4 +68,28 @@ describe("HistoryFilters", () => {
     expect(screen.getByLabelText("Search notes")).toHaveValue("dîner");
     expect(screen.getByRole("link", { name: "Clear filters" })).toHaveAttribute("href", "/history");
   });
+
+  it("colours category chips, keeps All neutral and tints the subcategory row", () => {
+    renderFilters({ category: "MANGER" });
+    expect(chip("Category", "MANGER")).toHaveClass("bg-category-manger-fg");
+    expect(chip("Category", "TRAVAIL")).toHaveClass("bg-category-travail-bg");
+    expect(chip("Category", "All")).toHaveClass("border-input", "bg-background");
+    expect(chip("Subcategory", "Dîner")).toHaveClass("bg-category-manger-bg");
+    expect(chip("Subcategory", "All")).toHaveClass("border-primary", "bg-primary");
+  });
+
+  it("keeps All as the neutral primary chip when selected", () => {
+    renderFilters();
+    expect(chip("Category", "All")).toHaveClass("border-primary", "bg-primary");
+  });
+
+  it.each(["__proto__", "toString", "NOPE"])(
+    "keeps unknown category %s neutral without crashing",
+    (bad) => {
+      renderFilters({ category: bad as never });
+      expect(within(group("Subcategory")).queryAllByRole("button")).toHaveLength(1);
+      expect(chip("Subcategory", "All")).toHaveClass("border-primary", "bg-primary");
+      expect(chip("Subcategory", "All")).not.toHaveClass("bg-category-manger-bg");
+    },
+  );
 });

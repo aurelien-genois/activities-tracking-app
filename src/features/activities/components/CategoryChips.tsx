@@ -1,5 +1,6 @@
 "use client";
 
+import { CATEGORY_STYLE } from "../categoryColors";
 import { CATEGORY_KEYS, type Category, getSubcategories } from "../constants";
 import { ChipGroup } from "./ChipGroup";
 
@@ -20,6 +21,7 @@ export function CategoryChips({
       options={CATEGORY_KEYS}
       value={value}
       onChange={onChange}
+      styleFor={(c) => CATEGORY_STYLE[c]}
       {...props}
     />
   );
@@ -49,9 +51,16 @@ export function SubcategoryChips({
   return (
     <ChipGroup
       label="Subcategory"
-      options={getSubcategories(category) as readonly string[]}
+      options={
+        (CATEGORY_KEYS as readonly string[]).includes(category)
+          ? (getSubcategories(category) as readonly string[])
+          : []
+      }
       value={value}
       onChange={onChange}
+      styleFor={() =>
+        Object.hasOwn(CATEGORY_STYLE, category) ? CATEGORY_STYLE[category] : undefined
+      }
       {...props}
     />
   );

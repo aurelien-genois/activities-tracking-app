@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
+import { CATEGORY_STYLE, type CategoryStyle } from "../categoryColors";
 import { CATEGORY_KEYS, type Category, getSubcategories } from "../constants";
 import { buildHistoryHref, HISTORY_PATH, type HistoryParams, hasActiveFilters } from "../history";
 import { HISTORY_QUERY_MAX_LENGTH } from "../schema";
@@ -21,12 +22,18 @@ type FilterChipsProps = {
   value: string | undefined;
   onSelect: (value: string | undefined) => void;
   disabled?: boolean;
+  styleFor?: (option: string) => CategoryStyle | undefined;
 };
 
 /** Single-selection chips with an "All" option (no filter). */
-function FilterChips({ label, options, value, onSelect, disabled }: FilterChipsProps) {
+function FilterChips({ label, options, value, onSelect, disabled, styleFor }: FilterChipsProps) {
   const labelId = useId();
-  const chip = (option: string, selected: boolean, next: string | undefined) => (
+  const chip = (
+    option: string,
+    selected: boolean,
+    next: string | undefined,
+    style?: CategoryStyle,
+  ) => (
     <button
       key={option}
       type="button"
@@ -35,9 +42,11 @@ function FilterChips({ label, options, value, onSelect, disabled }: FilterChipsP
       onClick={() => onSelect(next)}
       className={cn(
         "min-h-11 rounded-full border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:opacity-50",
-        selected
-          ? "border-primary bg-primary text-primary-foreground shadow"
-          : "border-input bg-background hover:bg-accent",
+        style
+          ? [style.chip, style.hover, selected && style.selected, selected && "shadow"]
+          : selected
+            ? "border-primary bg-primary text-primary-foreground shadow"
+            : "border-input bg-background hover:bg-accent",
       )}
     >
       {option}
@@ -51,7 +60,7 @@ function FilterChips({ label, options, value, onSelect, disabled }: FilterChipsP
       </span>
       <div role="group" aria-labelledby={labelId} className="flex flex-wrap gap-2">
         {chip(ALL, !value, undefined)}
-        {options.map((option) => chip(option, option === value, option))}
+        {options.map((option) => chip(option, option === value, option, styleFor?.(option)))}
       </div>
     </div>
   );
@@ -112,15 +121,25 @@ export function HistoryFilters({ filters }: HistoryFiltersProps) {
         options={CATEGORY_KEYS}
         value={category}
         disabled={isPending}
+        styleFor={(option) =>
+          Object.hasOwn(CATEGORY_STYLE, option) ? CATEGORY_STYLE[option as Category] : undefined
+        }
         onSelect={(value) => navigate({ q: query, category: value as Category | undefined })}
       />
 
       {category ? (
         <FilterChips
           label="Subcategory"
-          options={getSubcategories(category)}
+          options={
+            (CATEGORY_KEYS as readonly string[]).includes(category)
+              ? getSubcategories(category)
+              : []
+          }
           value={filters.subcategory}
           disabled={isPending}
+          styleFor={() =>
+            Object.hasOwn(CATEGORY_STYLE, category) ? CATEGORY_STYLE[category] : undefined
+          }
           onSelect={(subcategory) => navigate({ q: query, category, subcategory })}
         />
       ) : null}
