@@ -4,26 +4,35 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-    --radius: 0.5rem;
+    --background: 41.5 39.4% 93.5%; /* #F5F1E8 */
+    --foreground: 28.4 28.4% 13.1%; /* #2B2118 */
+    --card: 40 52.9% 96.7%; /* #FBF8F2 */
+    --card-foreground: 28.4 28.4% 13.1%; /* #2B2118 */
+    --popover: 40 52.9% 96.7%; /* #FBF8F2 */
+    --popover-foreground: 28.4 28.4% 13.1%; /* #2B2118 */
+    --primary: 27.5 50.4% 23.7%; /* #5B3A1E */
+    --primary-foreground: 40 52.9% 96.7%; /* #FBF8F2 */
+    --secondary: 39.1 35.4% 87.3%; /* #EAE2D3 */
+    --secondary-foreground: 28.4 28.4% 13.1%; /* #2B2118 */
+    --muted: 39.1 35.4% 87.3%; /* #EAE2D3 */
+    --muted-foreground: 30 18.6% 33.7%; /* #665646 */
+    --accent: 41.7 60.5% 85.1%; /* #F0E2C2 */
+    --accent-foreground: 28.4 28.4% 13.1%; /* #2B2118 */
+    --destructive: 354 72% 37.8%; /* #A61B29 */
+    --destructive-foreground: 0 0% 100%; /* #FFFFFF */
+    --border: 37.8 28.4% 81.4%; /* #DDD3C2 */
+    --input: 34.5 16.9% 46.3%; /* #8A7962 */
+    --ring: 35.2 86.7% 32.4%; /* #9A5F0B */
+    --success: 103.5 40.8% 29.8%; /* #3E6B2D */
+    --success-foreground: 0 0% 100%; /* #FFFFFF */
+    --radius: 0.625rem;
+
+    /* fixed gradient backdrop and the text colours drawn on it. */
+    --backdrop: 20 48.4% 12.2%; /* #2E1A10 */
+    --on-backdrop: 40 52.9% 96.7%; /* #FBF8F2 */
+    --on-backdrop-muted: 38.3 60% 88.2%; /* #F3E6CF */
+    --backdrop-gradient: linear-gradient(150deg, #5a2345 0%, #9a4512 50%, #2e1a10 100%);
+    --mood-focus-ring: var(--on-backdrop); /* ring on the gradient: #FBF8F2, >= 8.7:1 (WCAG 1.4.11) */
   }
 
   .dark {
@@ -54,6 +63,90 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
+    background-color: hsl(var(--backdrop));
   }
+}
+
+/* Fonts: variables come from next/font/google in src/app/layout.tsx. */
+html body,
+html .font-sans {
+  font-family: var(--font-source-sans), ui-sans-serif, system-ui, sans-serif;
+}
+h1,
+h2,
+h3 {
+  font-family: var(--font-bitter), Georgia, serif;
+  font-weight: 600;
+}
+html .font-mono {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-weight: 600;
+}
+
+/* Sonner success toast: opaque tokens; the toast keeps sonner's system font. */
+html [data-sonner-toaster][data-sonner-theme] {
+  --success-bg: #e3e4d5;
+  --success-border: #bec9b0;
+  --success-text: #3e6b2d;
+}
+
+/*
+ * the gradient is a fixed full-screen layer behind the content (never
+ * background-attachment: fixed, which iOS Safari ignores). The body keeps the last stop.
+ */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: var(--backdrop-gradient);
+  }
+
+/* Text drawn directly on the gradient. */
+main h1[class] {
+  color: hsl(var(--on-backdrop));
+}
+main #recent-activities-heading,
+main section > h2[id],
+main section > p[class],
+main > div > p[class],
+nav[aria-label="Pagination"] > span {
+  color: hsl(var(--on-backdrop-muted));
+}
+
+/* Content surfaces stay solid light (they bleed 0.5rem into main's gutter). */
+main form[aria-label="New activity"],
+main form[role="search"],
+main > form {
+  background-color: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  padding: 0.75rem 0.5rem;
+  margin-inline: -0.5rem;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+main ul[class] {
+  background-color: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  margin-inline: -0.5rem;
+}
+
+/* Focus ring of the controls on the backdrop = on-backdrop colour (3:1 needed, ocre gave 1.24:1). */
+body[class] header a[href]:focus-visible,
+body[class] header button:focus-visible,
+body[class] nav[aria-label="Pagination"] a[href]:focus-visible {
+  --tw-ring-color: hsl(var(--mood-focus-ring));
+}
+
+/* Disabled Previous/Next on the backdrop: no fill, dashed edge, no shadow, opacity 1. */
+body[class] nav[aria-label="Pagination"] button:disabled {
+  opacity: 1;
+  background-color: transparent;
+  box-shadow: none;
+  border-style: dashed;
+  border-color: hsl(var(--on-backdrop-muted) / 0.6);
+  color: hsl(var(--on-backdrop-muted) / 0.75);
 }
