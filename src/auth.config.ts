@@ -1,8 +1,9 @@
 import type { NextAuthConfig } from "next-auth";
 
 /**
- * Edge-safe Auth.js configuration shared by the middleware and `auth.ts`.
- * Must not import Prisma, bcrypt or any Node-only module.
+ * Auth.js configuration shared by the proxy (Node.js runtime since Next 16)
+ * and `auth.ts`. Kept free of Prisma and bcrypt so the proxy stays light;
+ * credentials live in `auth.ts`.
  */
 export const authConfig = {
   pages: { signIn: "/login" },

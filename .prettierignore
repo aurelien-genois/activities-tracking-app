@@ -10,3 +10,7 @@ src/generated
 package-lock.json
 next-env.d.ts
 *.tsbuildinfo
+
+/.github/agents/*
+/docs/
+/README.md

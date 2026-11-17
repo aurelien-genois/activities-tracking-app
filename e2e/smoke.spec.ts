@@ -5,7 +5,7 @@ test.use({ storageState: { cookies: [], origins: [] } });
 
 test("anonymous visitor is redirected to the login page", async ({ page }) => {
   await page.goto("/");
-  await expect(page).toHaveURL(/\/login/);
+  await expect(page).toHaveURL(/\/login\?callbackUrl=/);
   await expect(page).toHaveTitle(/Activities Tracking/);
   await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
 });
