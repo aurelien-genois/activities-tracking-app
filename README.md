@@ -19,7 +19,7 @@ for a single administrator. Self-hosted with Docker Compose.
 
 ## Stack
 
-Next.js 15 (App Router, Server Actions, standalone output), React 19, TypeScript (strict),
+Next.js 16 (App Router, Server Actions, standalone output), React 19, TypeScript (strict),
 Tailwind CSS v3 + shadcn/ui, Prisma ORM 7 (`@prisma/adapter-pg` driver adapter), PostgreSQL 17,
 Auth.js v5, Zod, Vitest + Testing Library, Playwright, Docker / Docker Compose.
 
@@ -48,6 +48,7 @@ See [`.env.example`](.env.example).
 | `APP_TIMEZONE`                                      | app                  | IANA time zone (default `Europe/Paris`).                            |
 | `AUTH_SECRET`                                       | app                  | Auth.js secret, at least 32 characters (`openssl rand -base64 32`). |
 | `AUTH_TRUST_HOST`                                   | app                  | `true` in Docker / behind a reverse proxy (Auth.js host only).      |
+| `AUTH_URL`                                          | app                  | Public origin (production behind a proxy), used for redirects.      |
 | `TRUST_PROXY_HOPS`                                  | app                  | Trusted proxies appending to `X-Forwarded-For` (default `0`).       |
 | `DATABASE_URL`                                      | app, Prisma CLI, e2e | Local development only; composed automatically in Docker Compose.   |
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Docker Compose       | Database credentials (use a URL-safe password).                     |
@@ -141,8 +142,12 @@ refuses to start if a required variable (`AUTH_SECRET`, `POSTGRES_*`, `SSL_DOMAI
 The app is exposed through nginx-proxy + acme-companion, which terminate HTTPS; since no host port
 is published, the proxy is the only entry point.
 
-- Keep `AUTH_TRUST_HOST=true` so Auth.js uses the `Host` / `X-Forwarded-*` headers from the proxy.
-  It does not affect the login rate limiter.
+- Keep `AUTH_TRUST_HOST=true` (Auth.js accepts the proxied host). It does not make the proxy
+  (`src/proxy.ts`) redirect using `Host` / `X-Forwarded-*`: Next builds the redirect origin from the
+  server's listen address, and Auth.js only replaces it when `AUTH_URL` is set. Set
+  `AUTH_URL=<public origin>` (e.g. `https://$SSL_DOMAIN`) in production behind a reverse proxy,
+  otherwise the `/login` redirect `Location` points to the internal address. It does not affect the
+  login rate limiter.
 - **Client IP for the login rate limiter**: set `TRUST_PROXY_HOPS` to the number of reverse proxies
   in front of the app (usually `1`). The limiter then uses the `X-Forwarded-For` entry appended by
   the outermost trusted proxy, counted from the right; values a client puts on the left are
@@ -167,7 +172,7 @@ src/
   features/auth/        Login action, credentials check, client IP, login form
   lib/                  Prisma client, env validation, date/time utils, rate limiter, security headers, seed logic
   prisma/               Prisma schema, migrations and seed script
-  auth.ts, auth.config.ts, middleware.ts   Auth.js setup and route protection
+  auth.ts, auth.config.ts, proxy.ts   Auth.js setup and route protection
 e2e/                    Playwright specs
 docs/                   Requirements, technical design, delivery plan
 prisma.config.ts        Prisma 7 configuration (schema, migrations, seed, datasource)
@@ -179,14 +184,14 @@ Dockerfile, docker-entrypoint.sh, docker-compose.yml, docker-compose.dev.yml
 Categories are fixed in code (`src/features/activities/constants.ts`) and not editable in the UI.
 The labels below are the values stored in the database.
 
-| Category   | Subcategories                              |
-| ---------- | ------------------------------------------ |
-| MANGER     | Ptit-dej, Dej, Gouter, Dîner               |
-| TRAVAIL    | Job, Formation, Création                   |
-| DOMESTIQUE | Administration, Courses, Ménage, Transport |
-| LOISIR     | Jeu-vidéo, Lecture, Sortir, Écouter, Sport |
-| REPOS      | Dormir, Douche, Trainer                    |
-| FAMILLE    | Téléphone, Discussion                      |
+| Category   | Subcategories                                                  |
+| ---------- | -------------------------------------------------------------- |
+| MANGER     | Ptit-dej, Brunch, Dej, Goûter, Dîner                           |
+| TRAVAIL    | Job, Formation, Création                                       |
+| DOMESTIQUE | Courses, Administration, Ménage, Préparation, Transport, Autre |
+| LOISIR     | Jouer, Lire, Regarder, Sortir, Écouter, Sport                  |
+| REPOS      | Dormir, Douche, Trainer, Autre                                 |
+| FAMILLE    | Téléphone, Discussion, Événement, Activité                     |
 
 ## Time zone
 

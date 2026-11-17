@@ -36,6 +36,7 @@ Order note: Prisma comes before Authentication (the login needs the `User` model
 ## Phase 3 - Authentication
 
 - **Objectives**: single-admin credentials login, protected routes, rate limiting.
+- **Note (2026-11-12)**: since the Next.js 16 upgrade, `src/middleware.ts` is `src/proxy.ts` (Node.js runtime). This plan is kept as delivered.
 - **Deliverables**: `auth.config.ts`, `auth.ts`, `middleware.ts`, `/api/auth/[...nextauth]`, `/login` page + `LoginForm`, logout action, `(app)` protected layout with nav, `src/lib/rate-limit.ts` with unit tests (limit reached, window expiry, reset on success), generic error messages, dummy compare on unknown email.
 - **Files**: `src/auth.ts`, `src/auth.config.ts`, `src/middleware.ts`, `src/app/login/page.tsx`, `src/app/(app)/layout.tsx`, `src/app/api/auth/[...nextauth]/route.ts`, `src/features/auth/**`, `src/lib/rate-limit.ts(+test)`, `src/types/next-auth.d.ts`.
 - **Dependencies**: Phases 1, 2.
@@ -52,7 +53,7 @@ Order note: Prisma comes before Authentication (the login needs the `User` model
 ## Phase 5 - Activity Entry Form
 
 - **Objectives**: mobile-first primary screen.
-- **Deliverables**: home page (Server Component loading defaults) with `ActivityForm` (Client): date/start/end inputs, category and subcategory chips (large touch targets), note field with low visual priority, sticky always-visible Save, inline validation messages (shared schema), overlap/future error display, "Activity saved" toast, form reset (start = saved end, end = now, selections cleared), pending state.
+- **Deliverables**: home page (Server Component loading defaults) with `ActivityForm` (Client): date/start/end inputs, category and subcategory chips (large touch targets), note field with low visual priority, inline Save button at the end of the form, inline validation messages (shared schema), overlap/future error display, "Activity saved" toast, form reset (start = saved end, end = now, selections cleared), pending state.
 - **Files**: `src/app/(app)/page.tsx`, `src/features/activities/components/{ActivityForm,CategoryChips}.tsx`, `src/components/ui/*` additions.
 - **Dependencies**: Phase 4.
 - **Acceptance**: form fits a 390x844 (and 360x640 where possible) viewport without scrolling; save blocked with clear messages on invalid input; successful save shows toast and resets as specified; creation takes under 10 s of interaction.

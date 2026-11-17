@@ -4,7 +4,7 @@ Based on `01-requirements-analysis.md` (including validated decisions).
 
 ## 1. Architecture overview
 
-Single Next.js 15 App Router application, PostgreSQL via Prisma 7 (driver adapter `@prisma/adapter-pg`). No separate backend, no repository/service layers.
+Single Next.js 16 App Router application, PostgreSQL via Prisma 7 (driver adapter `@prisma/adapter-pg`). No separate backend, no repository/service layers.
 
 ```
 Browser (mobile) ── Server Components (read: Prisma directly)
@@ -17,7 +17,7 @@ Browser (mobile) ── Server Components (read: Prisma directly)
 - **Reads**: Server Components query Prisma directly (recent activities, history with `searchParams`).
 - **Writes**: Server Actions `createActivity`, `updateActivity`, `deleteActivity`. Each action: (1) `auth()` check, (2) Zod `safeParse`, (3) serializable transaction (overlap check + write), (4) `revalidatePath("/")` and `/history`, (5) returns `{ ok: true } | { ok: false, fieldErrors, formError }` (no throwing for expected errors).
 - **Shared logic** in `src/lib` and `src/features/activities`, imported by both client and server (same Zod schema, same time utilities).
-- **Route protection**: Auth.js middleware (edge-safe) + `auth()` re-check in each action and page (defence in depth).
+- **Route protection**: Auth.js proxy (`src/proxy.ts`, Node.js runtime since Next 16) + `auth()` re-check in each action and page (defence in depth).
 - **Timezone**: all instants stored as UTC `timestamptz`; conversion Date+time <-> instant done in `APP_TIMEZONE` through a small `Intl.DateTimeFormat`-based util in `src/lib/datetime.ts` (no new dependency; `date-fns` v4 core has no timezone support). Client receives `APP_TIMEZONE` as a prop from the server.
 - **Duration**: computed on the fly (`endAt - startAt`) by a helper.
 
@@ -32,7 +32,7 @@ Browser (mobile) ── Server Components (read: Prisma directly)
 ```
 .
 ├── prisma.config.ts                 # schema, migrations path, seed (tsx), DATABASE_URL
-├── next.config.ts                   # output: "standalone"
+├── next.config.ts                   # output: "standalone"; agentRules: false (next dev 16 must not write into the tracked AGENTS.md)
 ├── vitest.config.ts  vitest.setup.ts
 ├── playwright.config.ts             # webServer: build + next start
 ├── eslint.config.mjs  .prettierrc  .prettierignore
@@ -74,8 +74,8 @@ Browser (mobile) ── Server Components (read: Prisma directly)
     │   ├── datetime.ts              # tz helpers (Intl)
     │   ├── rate-limit.ts            # in-memory limiter
     │   └── utils.ts                 # cn()
-    ├── auth.ts  auth.config.ts      # Auth.js (full / edge-safe)
-    ├── middleware.ts                # Auth.js edge-safe protection (must live in src/ with a src/app layout)
+    ├── auth.ts  auth.config.ts      # Auth.js (full / light, shared with the proxy)
+    ├── proxy.ts                     # Auth.js route protection (Next 16 proxy; must live in src/ with a src/app layout)
     ├── prisma/
     │   ├── schema.prisma
     │   ├── migrations/
@@ -92,9 +92,9 @@ Prisma 7 specifics (to verify against official docs at Phase 3): generator `pris
 
 - Auth.js v5 (`next-auth@beta`), **Credentials** provider, **JWT** session strategy (no Session/Account tables; `@auth/prisma-adapter` unused).
 - Split config:
-  - `auth.config.ts`: edge-safe (pages `{ signIn: "/login" }`, `authorized` callback). Used by `src/middleware.ts` (Next.js ignores a root `middleware.ts` when the app lives in `src/`).
+  - `auth.config.ts`: kept light, free of Prisma/bcrypt so the proxy stays small (pages `{ signIn: "/login" }`, `authorized` callback). Used by `src/proxy.ts` (Next.js ignores a root `proxy.ts` when the app lives in `src/`).
   - `auth.ts`: Credentials `authorize` (Zod-validates input, rate-limit check, `prisma.user.findUnique`, `bcryptjs.compare`). Runs on Node only.
-- Middleware matcher protects everything except `/login`, `/api/auth/*`, `/api/health`, `_next/*`, static assets. Authenticated user visiting `/login` is redirected to `/`.
+- Proxy matcher protects everything except `/login`, `/api/auth/*`, `/api/health`, `_next/*`, static assets. Authenticated user visiting `/login` is redirected to `/`.
 - **Rate limiting** (`src/lib/rate-limit.ts`): `Map<key, { failures: number[] }>` keyed by `ip + ":" + normalisedEmail`; 5 failures per 15 min sliding window; checked before the password; generic message "Too many attempts, try again later."; reset on success; periodic cleanup of expired keys. IP from `x-forwarded-for` (first value) / `x-real-ip`, only when `AUTH_TRUST_HOST` is set. Clock injectable for tests. The check lives in `authorize` (`src/features/auth/authorize.ts`), which reads the IP from the request headers Auth.js forwards, so it applies both to the login Server Action and to direct POSTs on `/api/auth/callback/credentials`; the limiter instance is kept on `globalThis` because Next.js bundles the route handler and the Server Action separately. Rate-limited attempts throw a `CredentialsSignin` subclass with `code: "rate_limited"`, mapped to the message by the login action.
 - Credential errors always the same generic message ("Invalid email or password"); on unknown email a dummy bcrypt compare is run to reduce timing differences.
 - **Seed** (`src/prisma/seed.ts`, run by `tsx`): reads `ADMIN_EMAIL` / `ADMIN_PASSWORD` (explicit error if missing), `bcryptjs.hash` (cost 12), `prisma.user.upsert({ where: { email }, update: { passwordHash }, create })`, never logs the password.
