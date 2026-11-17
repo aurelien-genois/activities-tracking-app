@@ -93,6 +93,31 @@ describe("RecentList", () => {
     expect(item).toHaveTextContent("07:00 - 08:00");
   });
 
+  it("adds a category stripe and pastel pill for a known category", () => {
+    const [item] = renderList([
+      activity("a", "2026-10-23T07:00:00Z", "2026-10-23T08:00:00Z", "MANGER", "Dej"),
+    ]);
+    expect(item).toHaveClass("border-l-4", "border-l-category-manger-border");
+    expect(within(item).getByText("MANGER > Dej")).toHaveClass(
+      "rounded-full",
+      "bg-category-manger-bg",
+    );
+  });
+
+  it.each(["__proto__", "constructor", "toString", "UNKNOWN"])(
+    "keeps unknown category %s neutral without crashing",
+    (category) => {
+      const [item] = renderList([
+        activity("a", "2026-10-23T07:00:00Z", "2026-10-23T08:00:00Z", category, "X"),
+      ]);
+      expect(item).toHaveClass("border-l-4", "border-l-transparent");
+      expect(item.className).not.toMatch(/category-/);
+      const label = within(item).getByText(`${category} > X`);
+      expect(label).toHaveClass("py-0.5", "text-xs");
+      expect(label.className).not.toMatch(/rounded-full|category-|border/);
+    },
+  );
+
   it("defaults 'today' to the current date", () => {
     const now = new Date();
     render(

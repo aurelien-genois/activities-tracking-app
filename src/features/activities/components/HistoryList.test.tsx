@@ -70,4 +70,39 @@ describe("HistoryList", () => {
     expect(items[0]).toHaveTextContent("2h 05m");
     expect(items[1]).toHaveTextContent("LOISIR > Écouter");
   });
+
+  it("adds a category stripe and pastel pill for a known category", () => {
+    render(
+      <HistoryList
+        timeZone={TZ}
+        activities={[
+          activity("a", "2026-10-22T07:00:00Z", "2026-10-22T08:00:00Z", { category: "LOISIR" }),
+        ]}
+      />,
+    );
+    const item = screen.getByRole("listitem");
+    expect(item).toHaveClass("border-l-4", "border-l-category-loisir-border");
+    expect(within(item).getByText("LOISIR > Job")).toHaveClass(
+      "rounded-full",
+      "bg-category-loisir-bg",
+    );
+  });
+
+  it.each(["__proto__", "constructor", "toString", "UNKNOWN"])(
+    "keeps unknown category %s neutral without crashing",
+    (category) => {
+      render(
+        <HistoryList
+          timeZone={TZ}
+          activities={[activity("a", "2026-10-22T07:00:00Z", "2026-10-22T08:00:00Z", { category })]}
+        />,
+      );
+      const item = screen.getByRole("listitem");
+      expect(item).toHaveClass("border-l-4", "border-l-transparent");
+      expect(item.className).not.toMatch(/category-/);
+      const label = within(item).getByText(`${category} > Job`);
+      expect(label).toHaveClass("py-0.5", "text-xs");
+      expect(label.className).not.toMatch(/rounded-full|category-|border/);
+    },
+  );
 });

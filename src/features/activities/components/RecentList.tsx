@@ -1,6 +1,8 @@
 import type { Activity } from "@/generated/prisma/client";
 import { todayInTz } from "@/lib/datetime";
+import { cn } from "@/lib/utils";
 
+import { CATEGORY_STYLE, type CategoryStyle } from "../categoryColors";
 import { durationMinutes, formatDayLabel, formatDuration, formatTimeRange } from "../time";
 
 export const RECENT_HEADING = "Recent activities";
@@ -19,6 +21,13 @@ export type RecentListProps = {
   now?: Date;
 };
 
+/** `category` is a free string: own keys only, so `__proto__` or `toString` stay neutral. */
+function styleFor(category: string): CategoryStyle | undefined {
+  return Object.hasOwn(CATEGORY_STYLE, category)
+    ? CATEGORY_STYLE[category as keyof typeof CATEGORY_STYLE]
+    : undefined;
+}
+
 /** Presentational list of the latest activities (no client JS needed). */
 export function RecentList({ activities, timeZone, now = new Date() }: RecentListProps) {
   const today = todayInTz(now, timeZone);
@@ -34,8 +43,15 @@ export function RecentList({ activities, timeZone, now = new Date() }: RecentLis
         <ul className="divide-y rounded-md border">
           {activities.map((activity) => {
             const isToday = todayInTz(activity.startAt, timeZone) === today;
+            const style = styleFor(activity.category);
             return (
-              <li key={activity.id} className="flex items-baseline gap-3 px-3 py-2 text-sm">
+              <li
+                key={activity.id}
+                className={cn(
+                  "flex items-baseline gap-3 border-l-4 border-l-transparent px-3 py-2 text-sm",
+                  style?.stripe,
+                )}
+              >
                 <div className="flex min-w-0 flex-1 flex-col">
                   <span className="tabular-nums">
                     {isToday ? null : (
@@ -45,7 +61,12 @@ export function RecentList({ activities, timeZone, now = new Date() }: RecentLis
                     )}
                     {formatTimeRange(activity, timeZone)}
                   </span>
-                  <span className="truncate font-medium">
+                  <span
+                    className={cn(
+                      "w-fit max-w-full truncate py-0.5 text-xs font-medium",
+                      style && `rounded-full border px-2 ${style.chip}`,
+                    )}
+                  >
                     {activity.category} &gt; {activity.subcategory}
                   </span>
                 </div>
