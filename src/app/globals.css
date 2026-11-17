@@ -33,9 +33,30 @@
     --on-backdrop-muted: 38.3 60% 88.2%; /* #F3E6CF */
     --backdrop-gradient: linear-gradient(150deg, #5a2345 0%, #9a4512 50%, #2e1a10 100%);
     --mood-focus-ring: var(--on-backdrop); /* ring on the gradient: #FBF8F2, >= 8.7:1 (WCAG 1.4.11) */
+
+    /* Category palette (pastel, desaturated): one colour per category, shared by its subcategories. */
+    --cat-manger-bg: 28.6 70% 88.2%; /* #F6E0CC */
+    --cat-manger-border: 25.8 61.5% 40.8%; /* #A85F28 */
+    --cat-manger-fg: 27 71.2% 24.5%; /* #6B3A12 */
+    --cat-travail-bg: 268.4 38.8% 90.4%; /* #E6DDF0 */
+    --cat-travail-border: 267.3 26.4% 49%; /* #7A5C9E */
+    --cat-travail-fg: 267 39% 30.2%; /* #4A2F6B */
+    --cat-domestique-bg: 211.3 43.4% 89.6%; /* #D9E4F0 */
+    --cat-domestique-border: 211.7 35.5% 48%; /* #4F78A6 */
+    --cat-domestique-fg: 213 53.4% 26.1%; /* #1F3F66 */
+    --cat-loisir-bg: 6.4 51.9% 89.4%; /* #F2D9D6 */
+    --cat-loisir-border: 4.7 40.8% 49%; /* #B0524A */
+    --cat-loisir-fg: 4 58.4% 30.2%; /* #7A2620 */
+    --cat-repos-bg: 97.9 29.2% 87.3%; /* #DCE8D5 */
+    --cat-repos-border: 102.7 28.8% 40.2%; /* #5A8449 */
+    --cat-repos-fg: 106.1 45.2% 24.3%; /* #2F5A22 */
+    --cat-famille-bg: 49.8 66.2% 86.1%; /* #F3EBC4 */
+    --cat-famille-border: 49.9 77.6% 31.6%; /* #8F7A12 */
+    --cat-famille-fg: 47.9 84% 19.6%; /* #5C4B08 */
   }
 
   .dark {
+    /* --cat-*: light palette deliberately kept */
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
     --card: 222.2 84% 4.9%;
@@ -102,7 +123,7 @@ body::before {
   z-index: -1;
   pointer-events: none;
   background-image: var(--backdrop-gradient);
-  }
+}
 
 /* Text drawn directly on the gradient. */
 main h1[class] {

@@ -44,6 +44,40 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // No `<alpha-value>` is declared: opacity modifiers such as /50 are
+        // unusable on these colours.
+        category: {
+          manger: {
+            bg: "hsl(var(--cat-manger-bg))",
+            border: "hsl(var(--cat-manger-border))",
+            fg: "hsl(var(--cat-manger-fg))",
+          },
+          travail: {
+            bg: "hsl(var(--cat-travail-bg))",
+            border: "hsl(var(--cat-travail-border))",
+            fg: "hsl(var(--cat-travail-fg))",
+          },
+          domestique: {
+            bg: "hsl(var(--cat-domestique-bg))",
+            border: "hsl(var(--cat-domestique-border))",
+            fg: "hsl(var(--cat-domestique-fg))",
+          },
+          loisir: {
+            bg: "hsl(var(--cat-loisir-bg))",
+            border: "hsl(var(--cat-loisir-border))",
+            fg: "hsl(var(--cat-loisir-fg))",
+          },
+          repos: {
+            bg: "hsl(var(--cat-repos-bg))",
+            border: "hsl(var(--cat-repos-border))",
+            fg: "hsl(var(--cat-repos-fg))",
+          },
+          famille: {
+            bg: "hsl(var(--cat-famille-bg))",
+            border: "hsl(var(--cat-famille-border))",
+            fg: "hsl(var(--cat-famille-fg))",
+          },
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
