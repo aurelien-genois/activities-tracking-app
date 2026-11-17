@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { expect, type Locator, type Page } from "@playwright/test";
 import { Pool } from "pg";
 
+import { isCategory, isSubcategoryOf } from "@/features/activities/constants";
 import { todayInTz, zonedDateTimeToInstant } from "@/lib/datetime";
 
 // Locally the variables come from `.env`; in CI they are plain environment variables.
@@ -129,6 +130,10 @@ export async function selectChip(scope: Locator, group: string, name: string): P
 
 /** Fills every field of an activity form (entry form or edit dialog). */
 export async function fillActivityFields(form: Locator, activity: ActivityInput): Promise<void> {
+  // A stale fixture would otherwise surface only as a click timeout on a missing chip.
+  if (!isCategory(activity.category) || !isSubcategoryOf(activity.category, activity.subcategory)) {
+    throw new Error(`e2e fixture: unknown ${activity.category} > ${activity.subcategory}`);
+  }
   await form.getByLabel("Date").fill(activity.date);
   await form.getByLabel("Start Time").fill(activity.startTime);
   await form.getByLabel("End Time").fill(activity.endTime);
@@ -165,7 +170,7 @@ export function recentActivities(page: Page): Locator {
   return page.getByRole("region", { name: "Recent activities" });
 }
 
-/** Accessible summary used by the Edit/Delete buttons, e.g. "09:00 - 10:00, LOISIR > Lecture". */
+/** Accessible summary used by the Edit/Delete buttons, e.g. "09:00 - 10:00, LOISIR > Lire". */
 export function activitySummary(activity: ActivityInput): string {
   return `${activity.startTime} - ${activity.endTime}, ${activity.category} > ${activity.subcategory}`;
 }

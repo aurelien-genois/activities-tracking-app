@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   activityForm,
+  activitySummary,
   countActivities,
   createActivity,
   deleteAllActivities,
@@ -26,14 +27,15 @@ test.afterAll(async () => {
 
 test("User creates an overlapping activity; validation error is displayed", async ({ page }) => {
   const date = pastDate();
-  await page.goto("/");
-  await createActivity(page, {
+  const existing = {
     date,
     startTime: "09:00",
     endTime: "10:00",
     category: "LOISIR",
-    subcategory: "Lecture",
-  });
+    subcategory: "Lire",
+  };
+  await page.goto("/");
+  await createActivity(page, existing);
 
   await submitActivity(page, {
     date,
@@ -44,7 +46,7 @@ test("User creates an overlapping activity; validation error is displayed", asyn
   });
 
   await expect(activityForm(page).getByRole("alert")).toHaveText(
-    "This activity overlaps an existing activity (09:00 - 10:00, LOISIR > Lecture).",
+    `This activity overlaps an existing activity (${activitySummary(existing)}).`,
   );
   await expect(recentActivities(page).getByRole("listitem")).toHaveCount(1);
   expect(await countActivities()).toBe(1);
