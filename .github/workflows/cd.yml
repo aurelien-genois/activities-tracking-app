@@ -107,6 +107,7 @@ jobs:
             printf 'AUTH_SECRET=%s\n' "$AUTH_SECRET"
             printf 'AUTH_TRUST_HOST=true\n'
             printf 'AUTH_URL=https://%s\n' "$SSL_DOMAIN"
+            printf 'POSTGRES_USER=%s\n' "$POSTGRES_USER"
             printf 'POSTGRES_PASSWORD=%s\n' "$POSTGRES_PASSWORD"
             printf 'POSTGRES_DB=%s\n' "$POSTGRES_DB"
             printf 'APP_TIMEZONE=%s\n' "$APP_TIMEZONE"
