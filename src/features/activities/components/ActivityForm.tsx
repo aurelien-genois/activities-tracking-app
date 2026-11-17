@@ -115,8 +115,8 @@ export function ActivityForm({ initialValues, timeZone }: ActivityFormProps) {
         </p>
       ) : null}
 
-      {/* Fixed so Save stays visible; the page reserves the matching bottom space. */}
-      <div className="mx-auto w-full max-w-md px-4">
+      {/* Inline Save at the end of the form (not fixed).*/}
+      <div className="w-full">
         <Button type="submit" disabled={!isFormValid || isPending} className="h-14 w-full text-lg">
           {isPending ? "Saving…" : "Save"}
         </Button>

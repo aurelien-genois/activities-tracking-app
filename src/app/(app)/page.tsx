@@ -17,8 +17,7 @@ export default async function HomePage() {
   const initialValues = getActivityFormDefaults(latestEnd, timeZone, now);
 
   return (
-    // Bottom padding reserves the space of the fixed Save bar (incl. the safe area).
-    <div className="flex flex-col gap-6 pb-[calc(6rem+env(safe-area-inset-bottom))]">
+    <div className="flex flex-col gap-6">
       <h1 className="sr-only">Activities Tracking</h1>
       <ActivityForm initialValues={initialValues} timeZone={timeZone} />
       <RecentList activities={recentActivities} timeZone={timeZone} now={now} />
