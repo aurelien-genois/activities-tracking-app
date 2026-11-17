@@ -32,7 +32,9 @@
     --on-backdrop: 40 52.9% 96.7%; /* #FBF8F2 */
     --on-backdrop-muted: 38.3 60% 88.2%; /* #F3E6CF */
     --backdrop-gradient: linear-gradient(150deg, #5a2345 0%, #9a4512 50%, #2e1a10 100%);
-    --mood-focus-ring: var(--on-backdrop); /* ring on the gradient: #FBF8F2, >= 8.7:1 (WCAG 1.4.11) */
+    --mood-focus-ring: var(
+      --on-backdrop
+    ); /* ring on the gradient: #FBF8F2, >= 8.7:1 (WCAG 1.4.11) */
 
     /* Category palette (pastel, desaturated): one colour per category, shared by its subcategories. */
     --cat-manger-bg: 28.6 70% 88.2%; /* #F6E0CC */
